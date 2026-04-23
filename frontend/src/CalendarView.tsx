@@ -59,21 +59,40 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   ) => {
     try {
       const token = localStorage.getItem("jwt");
-      const query = new URLSearchParams({
-        forceReplace: forceReplace.toString(),
-        forceJoin: forceJoin.toString(),
-      });
-      const response = await fetch(
-        `http://localhost:8080/api/appointments?${query.toString()}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(appointmentData),
+
+      let endpoint = "http://localhost:8080/api/appointments";
+      let requestBody: any = {
+        name: appointmentData.name,
+        location: appointmentData.location,
+        startTime: appointmentData.startTime,
+        endTime: appointmentData.endTime,
+        reminderMinutes: appointmentData.reminderMinutes,
+      };
+
+      if (appointmentData.appointmentType === "group") {
+        endpoint = "http://localhost:8080/api/appointments/group";
+        if (appointmentData.participantUsernames) {
+          requestBody.participantUsernames = appointmentData.participantUsernames
+            .split(',')
+            .map((u: string) => u.trim())
+            .filter((u: string) => u.length > 0);
+        }
+      } else {
+        const query = new URLSearchParams({
+          forceReplace: forceReplace.toString(),
+          forceJoin: forceJoin.toString(),
+        });
+        endpoint = `${endpoint}?${query.toString()}`;
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify(requestBody),
+      });
 
       if (response.status === 401) {
         onLogout();

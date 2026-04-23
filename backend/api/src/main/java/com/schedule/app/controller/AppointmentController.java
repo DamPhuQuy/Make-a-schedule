@@ -52,4 +52,10 @@ public class AppointmentController {
             throw e;
         }
     }
+
+    @PostMapping("/group")
+    public AppointmentResponse createGroupMeeting(@Valid @RequestBody CreateAppointmentRequest request,
+                                                   @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return appointmentService.createGroupMeeting(request, currentUser);
+    }
 }

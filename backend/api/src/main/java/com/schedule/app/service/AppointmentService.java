@@ -29,6 +29,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AppointmentService {
 
+    private static final String USER_NOT_FOUND = "User not found";
+
     private final AppointmentRepository appointmentRepository;
     private final GroupMeetingRepository groupMeetingRepository;
     private final ReminderRepository reminderRepository;
@@ -36,7 +38,7 @@ public class AppointmentService {
 
     public List<AppointmentResponse> getAllAppointments(UserDetailsImpl currentUser) {
         User user = userRepository.findById(currentUser.getId())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_FOUND));
 
         List<AppointmentResponse> dtos = appointmentRepository.findByOwnerId(user.getId()).stream()
                 .map(this::mapToResponse)
@@ -54,7 +56,7 @@ public class AppointmentService {
     @Transactional
     public AppointmentResponse createAppointment(CreateAppointmentRequest request, boolean forceReplace, boolean forceJoin, UserDetailsImpl currentUser) {
         User user = userRepository.findById(currentUser.getId())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_FOUND));
         validateAppointment(request);
 
         TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
@@ -109,12 +111,11 @@ public class AppointmentService {
             appointmentRepository.deleteAll(overlaps);
         }
 
-        Appointment appointment = Appointment.builder()
-                .name(request.getName())
-                .location(request.getLocation())
-                .timeSlot(requestedSlot)
-                .owner(user)
-                .build();
+        Appointment appointment = new Appointment();
+        appointment.setName(request.getName());
+        appointment.setLocation(request.getLocation());
+        appointment.setTimeSlot(requestedSlot);
+        appointment.setOwner(user);
 
         appointment = appointmentRepository.save(appointment);
 
@@ -133,18 +134,26 @@ public class AppointmentService {
     @Transactional
     public AppointmentResponse createGroupMeeting(CreateAppointmentRequest request, UserDetailsImpl currentUser) {
         User user = userRepository.findById(currentUser.getId())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_FOUND));
         validateAppointment(request);
         TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
 
         List<User> participants = new ArrayList<>();
         participants.add(user);
 
-        GroupMeeting gm = GroupMeeting.builder()
-            .name(request.getName())
-            .timeSlot(requestedSlot)
-            .participants(participants)
-            .build();
+        if (request.getParticipantUsernames() != null && !request.getParticipantUsernames().isEmpty()) {
+            for (String username : request.getParticipantUsernames()) {
+                String trimmedUsername = username.trim();
+                if (!trimmedUsername.isEmpty() && !trimmedUsername.equals(user.getUsername())) {
+                    userRepository.findByUsername(trimmedUsername).ifPresent(participants::add);
+                }
+            }
+        }
+
+        GroupMeeting gm = new GroupMeeting();
+        gm.setName(request.getName());
+        gm.setTimeSlot(requestedSlot);
+        gm.setParticipants(participants);
 
         groupMeetingRepository.save(gm);
         return mapGroupToResponse(gm);
@@ -160,11 +169,6 @@ public class AppointmentService {
         if (!request.getEndTime().isAfter(request.getStartTime())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End time must be after start time (duration must be positive)");
         }
-    }
-
-    private User getCurrentUser(UserDetailsImpl currentUser) {
-        return userRepository.findById(currentUser.getId())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
     }
 
     private AppointmentResponse mapToResponse(Appointment param) {
