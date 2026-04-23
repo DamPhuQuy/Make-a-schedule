@@ -158,6 +158,16 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           events={events}
           locale={culture === "vi" ? viLocale : undefined}
           height="100%"
+          eventTimeFormat={{
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          }}
+          slotLabelFormat={{
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          }}
         />
       </div>
 

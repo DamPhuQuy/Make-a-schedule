@@ -1,22 +1,26 @@
 package com.schedule.app.security;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtUtils {
-    // Generate a secure key for HS256
-    private final SecretKey jwtSecret = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private final SecretKey jwtSecret;
     private final int jwtExpirationMs = 86400000; // 24 hours
+
+    public JwtUtils(@Value("${jwt.secret}") String secret) {
+        this.jwtSecret = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
 
     public String generateJwtToken(Authentication authentication) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
