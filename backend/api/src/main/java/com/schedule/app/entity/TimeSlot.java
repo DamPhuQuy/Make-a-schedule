@@ -17,13 +17,13 @@ import lombok.Setter;
 @Builder
 public class TimeSlot {
 
-    private Instant start_time;
-    private Instant end_time;
+    private Instant startTime;
+    private Instant endTime;
 
     public boolean overlaps(TimeSlot other) {
-        if (other == null || other.getStart_time() == null || other.getEnd_time() == null) {
+        if (other == null || other.getStartTime() == null || other.getEndTime() == null) {
             return false;
         }
-        return this.start_time.isBefore(other.getEnd_time()) && this.end_time.isAfter(other.getStart_time());
+        return this.startTime.isBefore(other.getEndTime()) && this.endTime.isAfter(other.getStartTime());
     }
 }

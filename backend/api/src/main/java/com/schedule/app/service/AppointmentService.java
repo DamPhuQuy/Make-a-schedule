@@ -14,6 +14,7 @@ import com.schedule.app.dto.request.CreateAppointmentRequest;
 import com.schedule.app.dto.response.AppointmentResponse;
 import com.schedule.app.entity.Appointment;
 import com.schedule.app.entity.GroupMeeting;
+import com.schedule.app.entity.GroupMeetingParticipant;
 import com.schedule.app.entity.Reminder;
 import com.schedule.app.entity.TimeSlot;
 import com.schedule.app.entity.User;
@@ -45,7 +46,8 @@ public class AppointmentService {
                 .collect(Collectors.toList());
 
         List<AppointmentResponse> groupDtos = groupMeetingRepository.findAll().stream()
-                .filter(gm -> gm.getParticipants().stream().anyMatch(u -> u.getId().equals(user.getId())))
+                .filter(gm -> gm.getParticipants().stream()
+                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
                 .map(this::mapGroupToResponse)
                 .toList();
 
@@ -89,8 +91,11 @@ public class AppointmentService {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Group meeting not found");
             }
 
-            if (gm.getParticipants().stream().noneMatch(u -> u.getId().equals(user.getId()))) {
-                gm.getParticipants().add(user);
+            if (gm.getParticipants().stream().noneMatch(p -> p.getUser().getId().equals(user.getId()))) {
+                GroupMeetingParticipant participant = new GroupMeetingParticipant();
+                participant.setGroupMeeting(gm);
+                participant.setUser(user);
+                gm.getParticipants().add(participant);
                 groupMeetingRepository.save(gm);
             }
             return mapGroupToResponse(gm);
@@ -138,22 +143,29 @@ public class AppointmentService {
         validateAppointment(request);
         TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
 
-        List<User> participants = new ArrayList<>();
-        participants.add(user);
+        GroupMeeting gm = new GroupMeeting();
+        gm.setName(request.getName());
+        gm.setTimeSlot(requestedSlot);
+        gm.setParticipants(new ArrayList<>());
+
+        GroupMeetingParticipant creatorParticipant = new GroupMeetingParticipant();
+        creatorParticipant.setGroupMeeting(gm);
+        creatorParticipant.setUser(user);
+        gm.getParticipants().add(creatorParticipant);
 
         if (request.getParticipantUsernames() != null && !request.getParticipantUsernames().isEmpty()) {
             for (String username : request.getParticipantUsernames()) {
                 String trimmedUsername = username.trim();
                 if (!trimmedUsername.isEmpty() && !trimmedUsername.equals(user.getUsername())) {
-                    userRepository.findByUsername(trimmedUsername).ifPresent(participants::add);
+                    userRepository.findByUsername(trimmedUsername).ifPresent(participantUser -> {
+                        GroupMeetingParticipant participant = new GroupMeetingParticipant();
+                        participant.setGroupMeeting(gm);
+                        participant.setUser(participantUser);
+                        gm.getParticipants().add(participant);
+                    });
                 }
             }
         }
-
-        GroupMeeting gm = new GroupMeeting();
-        gm.setName(request.getName());
-        gm.setTimeSlot(requestedSlot);
-        gm.setParticipants(participants);
 
         groupMeetingRepository.save(gm);
         return mapGroupToResponse(gm);
