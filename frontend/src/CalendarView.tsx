@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import FullCalendar from '@fullcalendar/react';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import viLocale from '@fullcalendar/core/locales/vi';
-import AppointmentModal from './AppointmentModal';
-import ConflictWarning from './ConflictWarning';
+import viLocale from "@fullcalendar/core/locales/vi";
+import interactionPlugin from "@fullcalendar/interaction";
+import FullCalendar from "@fullcalendar/react";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import { useEffect, useState } from "react";
+import AppointmentModal from "./AppointmentModal";
+import ConflictWarning from "./ConflictWarning";
 
 export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   const [events, setEvents] = useState<any[]>([]);
@@ -13,7 +13,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   const [conflictType, setConflictType] = useState<string | null>(null);
   const [conflictMessage, setConflictMessage] = useState("");
   const [pendingAppointment, setPendingAppointment] = useState<any>(null);
-  const [culture, setCulture] = useState('en-US');
+  const [culture, setCulture] = useState("en-US");
 
   useEffect(() => {
     fetchAppointments();
@@ -22,8 +22,8 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem("jwt");
-      const response = await fetch('http://localhost:8080/api/appointments', {
-        headers: { "Authorization": `Bearer ${token}` }
+      const response = await fetch("http://localhost:8080/api/appointments", {
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.status === 401) {
         onLogout();
@@ -34,7 +34,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         ...appt,
         start: new Date(appt.startTime),
         end: new Date(appt.endTime),
-        title: appt.name + (appt.groupMeeting ? " (Group)" : "")
+        title: appt.name + (appt.isGroupMeeting ? " (Group)" : ""),
       }));
       setEvents(formattedData);
     } catch (error) {
@@ -45,28 +45,35 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   const handleSelectSlot = (selectInfo: any) => {
     setSelectedSlot({
       start: selectInfo.start,
-      end: selectInfo.end
+      end: selectInfo.end,
     });
     // Unselect the internal selection immediately so it doesn't linger visually after modal interactions
     selectInfo.view.calendar.unselect();
     setIsModalOpen(true);
   };
 
-  const handleSaveAppointment = async (appointmentData: any, forceReplace = false, forceJoin = false) => {
+  const handleSaveAppointment = async (
+    appointmentData: any,
+    forceReplace = false,
+    forceJoin = false,
+  ) => {
     try {
       const token = localStorage.getItem("jwt");
       const query = new URLSearchParams({
         forceReplace: forceReplace.toString(),
-        forceJoin: forceJoin.toString()
+        forceJoin: forceJoin.toString(),
       });
-      const response = await fetch(`http://localhost:8080/api/appointments?${query.toString()}`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      const response = await fetch(
+        `http://localhost:8080/api/appointments?${query.toString()}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(appointmentData),
         },
-        body: JSON.stringify(appointmentData)
-      });
+      );
 
       if (response.status === 401) {
         onLogout();
@@ -75,9 +82,17 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
 
       if (response.status === 409) {
         const errorData = await response.json();
-        const errorMessage = errorData.message || (errorData.trace && errorData.trace.includes("OVERLAP:") ? "OVERLAP" : "GROUP_MEETING");
+        const errorMessage =
+          errorData.message ||
+          (errorData.trace && errorData.trace.includes("OVERLAP:")
+            ? "OVERLAP"
+            : "GROUP_MEETING");
 
-        let type = errorMessage.includes("OVERLAP:") ? "OVERLAP" : errorMessage.includes("GROUP_MEETING:") ? "GROUP_MEETING" : "UNKNOWN";
+        let type = errorMessage.includes("OVERLAP:")
+          ? "OVERLAP"
+          : errorMessage.includes("GROUP_MEETING:")
+            ? "GROUP_MEETING"
+            : "UNKNOWN";
 
         setConflictType(type);
         setConflictMessage(errorMessage);
@@ -106,19 +121,19 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">My Calendar</h1>
         <div className="flex space-x-2">
-          <button 
-            onClick={() => setCulture('en-US')}
-            className={`px-3 py-1 rounded text-sm font-medium transition ${culture === 'en-US' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          <button
+            onClick={() => setCulture("en-US")}
+            className={`px-3 py-1 rounded text-sm font-medium transition ${culture === "en-US" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
           >
             English
           </button>
-          <button 
-            onClick={() => setCulture('vi')}
-            className={`px-3 py-1 rounded text-sm font-medium transition ${culture === 'vi' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          <button
+            onClick={() => setCulture("vi")}
+            className={`px-3 py-1 rounded text-sm font-medium transition ${culture === "vi" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
           >
             Tiếng Việt
           </button>
-          <button 
+          <button
             onClick={onLogout}
             className="px-3 py-1 rounded text-sm font-medium transition bg-red-100 text-red-600 hover:bg-red-200 ml-4"
           >
@@ -126,19 +141,22 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           </button>
         </div>
       </div>
-      <div className="bg-white rounded-xl shadow p-4" style={{ height: '80vh' }}>
+      <div
+        className="bg-white rounded-xl shadow p-4"
+        style={{ height: "80vh" }}
+      >
         <FullCalendar
           plugins={[timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
           headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: '' // Just view by week, no extra view buttons
+            left: "prev,next today",
+            center: "title",
+            right: "", // Just view by week, no extra view buttons
           }}
           selectable={true}
           select={handleSelectSlot}
           events={events}
-          locale={culture === 'vi' ? viLocale : undefined}
+          locale={culture === "vi" ? viLocale : undefined}
           height="100%"
         />
       </div>
@@ -156,7 +174,9 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           type={conflictType}
           message={conflictMessage}
           onCancel={() => setConflictType(null)}
-          onReplace={() => handleSaveAppointment(pendingAppointment, true, false)}
+          onReplace={() =>
+            handleSaveAppointment(pendingAppointment, true, false)
+          }
           onJoin={() => handleSaveAppointment(pendingAppointment, false, true)}
         />
       )}

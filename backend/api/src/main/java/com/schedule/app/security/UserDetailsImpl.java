@@ -1,36 +1,29 @@
 package com.schedule.app.security;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.schedule.app.entity.User;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.Collections;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import com.schedule.app.entity.User;
 
 public class UserDetailsImpl implements UserDetails {
     private static final long serialVersionUID = 1L;
 
-    private Long id;
-    private String username;
+    private User user;
 
-    @JsonIgnore
-    private String password;
-
-    public UserDetailsImpl(Long id, String username, String password) {
-        this.id = id;
-        this.username = username;
-        this.password = password;
+    public UserDetailsImpl(User user) {
+        this.user = user;
     }
 
     public static UserDetailsImpl build(User user) {
         return new UserDetailsImpl(
-                user.getId(),
-                user.getUsername(),
-                user.getPassword());
+                user);
     }
 
     public Long getId() {
-        return id;
+        return user.getId();
     }
 
     @Override
@@ -40,12 +33,12 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public String getPassword() {
-        return password;
+        return user.getPassword();
     }
 
     @Override
     public String getUsername() {
-        return username;
+        return user.getUsername();
     }
 
     @Override

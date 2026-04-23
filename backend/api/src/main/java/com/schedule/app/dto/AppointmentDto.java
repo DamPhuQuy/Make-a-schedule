@@ -1,7 +1,8 @@
 package com.schedule.app.dto;
 
-import lombok.Data;
 import java.time.LocalDateTime;
+
+import lombok.Data;
 
 @Data
 public class AppointmentDto {

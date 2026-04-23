@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.schedule.app.dto.AppointmentDto;
+import com.schedule.app.dto.request.CreateAppointmentRequest;
+import com.schedule.app.dto.response.AppointmentResponse;
 import com.schedule.app.entity.Appointment;
 import com.schedule.app.entity.GroupMeeting;
 import com.schedule.app.entity.Reminder;
@@ -34,32 +34,34 @@ public class AppointmentService {
     private final ReminderRepository reminderRepository;
     private final UserRepository userRepository;
 
-    public List<AppointmentDto> getAllAppointments() {
-        User currentUser = getCurrentUser();
+    public List<AppointmentResponse> getAllAppointments(UserDetailsImpl currentUser) {
+        User user = userRepository.findById(currentUser.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
-        List<AppointmentDto> dtos = appointmentRepository.findByOwnerId(currentUser.getId()).stream()
-                .map(this::mapToDto)
+        List<AppointmentResponse> dtos = appointmentRepository.findByOwnerId(user.getId()).stream()
+                .map(this::mapToResponse)
                 .collect(Collectors.toList());
 
-        List<AppointmentDto> groupDtos = groupMeetingRepository.findAll().stream()
-                .filter(gm -> gm.getParticipants().stream().anyMatch(u -> u.getId().equals(currentUser.getId())))
-                .map(this::mapGroupToDto)
-                .collect(Collectors.toList());
+        List<AppointmentResponse> groupDtos = groupMeetingRepository.findAll().stream()
+                .filter(gm -> gm.getParticipants().stream().anyMatch(u -> u.getId().equals(user.getId())))
+                .map(this::mapGroupToResponse)
+                .toList();
 
         dtos.addAll(groupDtos);
         return dtos;
     }
 
     @Transactional
-    public AppointmentDto createAppointment(AppointmentDto dto, boolean forceReplace, boolean forceJoin) {
-        User currentUser = getCurrentUser();
-        validateAppointment(dto);
+    public AppointmentResponse createAppointment(CreateAppointmentRequest request, boolean forceReplace, boolean forceJoin, UserDetailsImpl currentUser) {
+        User user = userRepository.findById(currentUser.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        validateAppointment(request);
 
-        TimeSlot requestedSlot = new TimeSlot(dto.getStartTime(), dto.getEndTime());
+        TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
 
         if (!forceJoin && !forceReplace) {
-            List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(dto.getName());
-            long newDuration = Duration.between(dto.getStartTime(), dto.getEndTime()).toMinutes();
+            List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(request.getName());
+            long newDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
 
             for (GroupMeeting existing : sameNameList) {
                 long existingDuration = Duration.between(existing.getTimeSlot().getStart_time(), existing.getTimeSlot().getEnd_time()).toMinutes();
@@ -71,17 +73,13 @@ public class AppointmentService {
 
         if (forceJoin) {
             GroupMeeting gm = null;
-            if (dto.getId() != null) {
-                gm = groupMeetingRepository.findById(dto.getId()).orElse(null);
-            } else {
-                List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(dto.getName());
-                long newDuration = Duration.between(dto.getStartTime(), dto.getEndTime()).toMinutes();
-                for (GroupMeeting existing : sameNameList) {
-                    long existingDuration = Duration.between(existing.getTimeSlot().getStart_time(), existing.getTimeSlot().getEnd_time()).toMinutes();
-                    if (existingDuration == newDuration) {
-                        gm = existing;
-                        break;
-                    }
+            List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(request.getName());
+            long newDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
+            for (GroupMeeting existing : sameNameList) {
+                long existingDuration = Duration.between(existing.getTimeSlot().getStart_time(), existing.getTimeSlot().getEnd_time()).toMinutes();
+                if (existingDuration == newDuration) {
+                    gm = existing;
+                    break;
                 }
             }
 
@@ -89,15 +87,15 @@ public class AppointmentService {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Group meeting not found");
             }
 
-            if (gm.getParticipants().stream().noneMatch(u -> u.getId().equals(currentUser.getId()))) {
-                gm.getParticipants().add(currentUser);
+            if (gm.getParticipants().stream().noneMatch(u -> u.getId().equals(user.getId()))) {
+                gm.getParticipants().add(user);
                 groupMeetingRepository.save(gm);
             }
-            return mapGroupToDto(gm);
+            return mapGroupToResponse(gm);
         }
 
         if (!forceReplace) {
-            List<Appointment> overlaps = appointmentRepository.findByOwnerId(currentUser.getId()).stream()
+            List<Appointment> overlaps = appointmentRepository.findByOwnerId(user.getId()).stream()
                 .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
                 .toList();
 
@@ -105,95 +103,96 @@ public class AppointmentService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "OVERLAP:" + overlaps.get(0).getId());
             }
         } else {
-            List<Appointment> overlaps = appointmentRepository.findByOwnerId(currentUser.getId()).stream()
+            List<Appointment> overlaps = appointmentRepository.findByOwnerId(user.getId()).stream()
                 .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
                 .toList();
             appointmentRepository.deleteAll(overlaps);
         }
 
         Appointment appointment = Appointment.builder()
-                .name(dto.getName())
-                .location(dto.getLocation())
+                .name(request.getName())
+                .location(request.getLocation())
                 .timeSlot(requestedSlot)
-                .owner(currentUser)
+                .owner(user)
                 .build();
 
         appointment = appointmentRepository.save(appointment);
 
-        if (dto.getReminderMinutes() != null) {
+        if (request.getReminderMinutes() != null) {
             Reminder reminder = Reminder.builder()
                     .appointmentId(appointment.getId())
-                    .minutesBefore(dto.getReminderMinutes())
+                    .minutesBefore(request.getReminderMinutes())
                     .build();
             reminderRepository.save(reminder);
         }
 
-        return mapToDto(appointment);
+        return mapToResponse(appointment);
     }
 
     // Allows us to quickly seed or create a group meeting if we want to
     @Transactional
-    public AppointmentDto createGroupMeeting(AppointmentDto dto) {
-        User currentUser = getCurrentUser();
-        validateAppointment(dto);
-        TimeSlot requestedSlot = new TimeSlot(dto.getStartTime(), dto.getEndTime());
+    public AppointmentResponse createGroupMeeting(CreateAppointmentRequest request, UserDetailsImpl currentUser) {
+        User user = userRepository.findById(currentUser.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        validateAppointment(request);
+        TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
 
         List<User> participants = new ArrayList<>();
-        participants.add(currentUser);
+        participants.add(user);
 
         GroupMeeting gm = GroupMeeting.builder()
-            .name(dto.getName())
+            .name(request.getName())
             .timeSlot(requestedSlot)
             .participants(participants)
             .build();
 
         groupMeetingRepository.save(gm);
-        return mapGroupToDto(gm);
+        return mapGroupToResponse(gm);
     }
 
-    private void validateAppointment(AppointmentDto dto) {
-        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+    private void validateAppointment(CreateAppointmentRequest request) {
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment name cannot be empty");
         }
-        if (dto.getStartTime() == null || dto.getEndTime() == null) {
+        if (request.getStartTime() == null || request.getEndTime() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start and end times are required");
         }
-        if (!dto.getEndTime().isAfter(dto.getStartTime())) {
+        if (!request.getEndTime().isAfter(request.getStartTime())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End time must be after start time (duration must be positive)");
         }
     }
 
-    private User getCurrentUser() {
-        UserDetailsImpl principal = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return userRepository.findById(principal.getId())
+    private User getCurrentUser(UserDetailsImpl currentUser) {
+        return userRepository.findById(currentUser.getId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
     }
 
-    private AppointmentDto mapToDto(Appointment param) {
-        AppointmentDto dto = new AppointmentDto();
-        dto.setId(param.getId());
-        dto.setName(param.getName());
-        dto.setLocation(param.getLocation());
-        dto.setStartTime(param.getTimeSlot().getStart_time());
-        dto.setEndTime(param.getTimeSlot().getEnd_time());
-        dto.setGroupMeeting(false);
-
+    private AppointmentResponse mapToResponse(Appointment param) {
         List<Reminder> reminders = reminderRepository.findByAppointmentId(param.getId());
-        if (!reminders.isEmpty()) {
-            dto.setReminderMinutes(reminders.get(0).getMinutesBefore());
-        }
-        return dto;
+        Integer reminderMinutes = reminders.isEmpty() ? null : reminders.get(0).getMinutesBefore();
+
+        return AppointmentResponse.builder()
+            .id(param.getId())
+            .name(param.getName())
+            .location(param.getLocation())
+            .startTime(param.getTimeSlot().getStart_time())
+            .endTime(param.getTimeSlot().getEnd_time())
+            .reminderMinutes(reminderMinutes)
+            .isGroupMeeting(false)
+            .ownerUsername(param.getOwner().getUsername())
+            .build();
     }
 
-    private AppointmentDto mapGroupToDto(GroupMeeting param) {
-        AppointmentDto dto = new AppointmentDto();
-        dto.setId(param.getId());
-        dto.setName(param.getName());
-        dto.setLocation("Multiple");
-        dto.setStartTime(param.getTimeSlot().getStart_time());
-        dto.setEndTime(param.getTimeSlot().getEnd_time());
-        dto.setGroupMeeting(true);
-        dto.setReminderMinutes(null);
-        return dto;
+    private AppointmentResponse mapGroupToResponse(GroupMeeting param) {
+        return AppointmentResponse.builder()
+            .id(param.getId())
+            .name(param.getName())
+            .location("Multiple")
+            .startTime(param.getTimeSlot().getStart_time())
+            .endTime(param.getTimeSlot().getEnd_time())
+            .reminderMinutes(null)
+            .isGroupMeeting(true)
+            .ownerUsername("Group")
+            .build();
     }
 }

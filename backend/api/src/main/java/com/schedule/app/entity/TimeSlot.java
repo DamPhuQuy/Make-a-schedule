@@ -1,6 +1,6 @@
 package com.schedule.app.entity;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
@@ -17,8 +17,8 @@ import lombok.Setter;
 @Builder
 public class TimeSlot {
 
-    private LocalDateTime start_time;
-    private LocalDateTime end_time;
+    private Instant start_time;
+    private Instant end_time;
 
     public boolean overlaps(TimeSlot other) {
         if (other == null || other.getStart_time() == null || other.getEnd_time() == null) {
