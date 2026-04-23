@@ -1,5 +1,16 @@
 package com.schedule.app.service;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.schedule.app.dto.AppointmentDto;
 import com.schedule.app.entity.Appointment;
 import com.schedule.app.entity.GroupMeeting;
@@ -11,17 +22,8 @@ import com.schedule.app.repository.GroupMeetingRepository;
 import com.schedule.app.repository.ReminderRepository;
 import com.schedule.app.repository.UserRepository;
 import com.schedule.app.security.UserDetailsImpl;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -58,7 +60,7 @@ public class AppointmentService {
         if (!forceJoin && !forceReplace) {
             List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(dto.getName());
             long newDuration = Duration.between(dto.getStartTime(), dto.getEndTime()).toMinutes();
-            
+
             for (GroupMeeting existing : sameNameList) {
                 long existingDuration = Duration.between(existing.getTimeSlot().getStart_time(), existing.getTimeSlot().getEnd_time()).toMinutes();
                 if (existingDuration == newDuration) {
@@ -82,7 +84,7 @@ public class AppointmentService {
                     }
                 }
             }
-            
+
             if (gm == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Group meeting not found");
             }
@@ -97,7 +99,7 @@ public class AppointmentService {
         if (!forceReplace) {
             List<Appointment> overlaps = appointmentRepository.findByOwnerId(currentUser.getId()).stream()
                 .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
-                .collect(Collectors.toList());
+                .toList();
 
             if (!overlaps.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "OVERLAP:" + overlaps.get(0).getId());
@@ -105,7 +107,7 @@ public class AppointmentService {
         } else {
             List<Appointment> overlaps = appointmentRepository.findByOwnerId(currentUser.getId()).stream()
                 .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
-                .collect(Collectors.toList());
+                .toList();
             appointmentRepository.deleteAll(overlaps);
         }
 
@@ -115,7 +117,7 @@ public class AppointmentService {
                 .timeSlot(requestedSlot)
                 .owner(currentUser)
                 .build();
-        
+
         appointment = appointmentRepository.save(appointment);
 
         if (dto.getReminderMinutes() != null) {
@@ -128,23 +130,23 @@ public class AppointmentService {
 
         return mapToDto(appointment);
     }
-    
+
     // Allows us to quickly seed or create a group meeting if we want to
     @Transactional
     public AppointmentDto createGroupMeeting(AppointmentDto dto) {
         User currentUser = getCurrentUser();
         validateAppointment(dto);
         TimeSlot requestedSlot = new TimeSlot(dto.getStartTime(), dto.getEndTime());
-        
+
         List<User> participants = new ArrayList<>();
         participants.add(currentUser);
-        
+
         GroupMeeting gm = GroupMeeting.builder()
             .name(dto.getName())
             .timeSlot(requestedSlot)
             .participants(participants)
             .build();
-            
+
         groupMeetingRepository.save(gm);
         return mapGroupToDto(gm);
     }
@@ -182,7 +184,7 @@ public class AppointmentService {
         }
         return dto;
     }
-    
+
     private AppointmentDto mapGroupToDto(GroupMeeting param) {
         AppointmentDto dto = new AppointmentDto();
         dto.setId(param.getId());
