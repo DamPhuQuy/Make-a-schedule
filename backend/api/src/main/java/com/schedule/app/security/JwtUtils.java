@@ -17,6 +17,7 @@ import io.jsonwebtoken.security.Keys;
 public class JwtUtils {
     private final SecretKey jwtSecret;
     private final int jwtExpirationMs = 86400000; // 24 hours
+    private final int refreshTokenExpirationMs = 604800000; // 7 days
 
     public JwtUtils(@Value("${jwt.secret}") String secret) {
         this.jwtSecret = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -29,6 +30,15 @@ public class JwtUtils {
                 .setSubject((userPrincipal.getUsername()))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .signWith(jwtSecret)
+                .compact();
+    }
+
+    public String generateRefreshToken(String email) {
+        return Jwts.builder()
+                .setSubject(email)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + refreshTokenExpirationMs))
                 .signWith(jwtSecret)
                 .compact();
     }
