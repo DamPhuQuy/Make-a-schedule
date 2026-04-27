@@ -3,11 +3,15 @@ package com.schedule.app.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.schedule.app.application.service.AppointmentService;
 import com.schedule.app.application.service.AuthenticationService;
+import com.schedule.app.application.service.LogoutService;
+import com.schedule.app.application.service.RegisterService;
 import com.schedule.app.application.usecase.AppointmentUseCase;
-import com.schedule.app.application.usecase.AuthenticationUseCase;
+import com.schedule.app.application.usecase.LogoutUseCase;
+import com.schedule.app.application.usecase.RegisterUseCase;
 import com.schedule.app.domain.repository.AppointmentRepository;
 import com.schedule.app.domain.repository.GroupMeetingRepository;
 import com.schedule.app.domain.repository.RefreshTokenRepository;
@@ -17,6 +21,7 @@ import com.schedule.app.security.JwtUtils;
 
 @Configuration
 public class UsecaseConfig {
+
     @Bean
     public AppointmentUseCase appointmentUseCase(
             AppointmentRepository appointmentRepository,
@@ -33,5 +38,17 @@ public class UsecaseConfig {
             AuthenticationManager authenticationManager,
             JwtUtils jwtUtils) {
         return new AuthenticationService(userRepository, refreshTokenRepository, authenticationManager, jwtUtils);
+    }
+
+    @Bean
+    public RegisterUseCase registerUseCase(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder) {
+        return new RegisterService(userRepository, passwordEncoder);
+    }
+
+    @Bean
+    public LogoutUseCase logoutUseCase(RefreshTokenRepository refreshTokenRepository) {
+        return new LogoutService(refreshTokenRepository);
     }
 }
