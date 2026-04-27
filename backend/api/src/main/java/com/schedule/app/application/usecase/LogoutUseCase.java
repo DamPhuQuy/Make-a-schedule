@@ -1,6 +1,8 @@
 package com.schedule.app.application.usecase;
 
+import com.schedule.app.application.dto.request.LogoutRequest;
+
 @FunctionalInterface
 public interface LogoutUseCase {
-    void logout(String refreshToken);
+    void logout(LogoutRequest request);
 }

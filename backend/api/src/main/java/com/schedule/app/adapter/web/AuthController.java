@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.schedule.app.application.dto.request.LoginRequest;
+import com.schedule.app.application.dto.request.LogoutRequest;
 import com.schedule.app.application.dto.request.RegisterRequest;
 import com.schedule.app.application.dto.response.LoginResponse;
 import com.schedule.app.application.dto.response.MessageResponse;
@@ -35,8 +36,8 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<MessageResponse> logout(@RequestBody String refreshToken) {
-        logoutUseCase.logout(refreshToken);
+    public ResponseEntity<MessageResponse> logout(@RequestBody LogoutRequest request) {
+        logoutUseCase.logout(request);
         return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
     }
 
