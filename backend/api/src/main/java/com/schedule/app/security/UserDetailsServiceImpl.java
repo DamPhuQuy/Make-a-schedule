@@ -6,14 +6,14 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.schedule.app.adapter.persistence.UserRepositoryAdapter;
+import com.schedule.app.domain.repository.UserRepository;
 import com.schedule.app.infrastructure.persistence.entity.User;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
-    private final UserRepositoryAdapter userRepository;
+    private final UserRepository userRepository;
 
-    public UserDetailsServiceImpl(UserRepositoryAdapter userRepository) {
+    public UserDetailsServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 

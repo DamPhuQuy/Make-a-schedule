@@ -10,6 +10,7 @@ import com.schedule.app.application.service.AuthenticationService;
 import com.schedule.app.application.service.LogoutService;
 import com.schedule.app.application.service.RegisterService;
 import com.schedule.app.application.usecase.AppointmentUseCase;
+import com.schedule.app.application.usecase.AuthenticationUseCase;
 import com.schedule.app.application.usecase.LogoutUseCase;
 import com.schedule.app.application.usecase.RegisterUseCase;
 import com.schedule.app.domain.repository.AppointmentRepository;
@@ -32,7 +33,7 @@ public class UsecaseConfig {
     }
 
     @Bean
-    public AuthenticationService authenticationService(
+    public AuthenticationUseCase authenticationUseCase(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             AuthenticationManager authenticationManager,

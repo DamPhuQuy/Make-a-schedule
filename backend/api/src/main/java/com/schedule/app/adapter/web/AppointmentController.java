@@ -15,23 +15,25 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.schedule.app.application.dto.request.CreateAppointmentRequest;
 import com.schedule.app.application.dto.response.AppointmentResponse;
-import com.schedule.app.application.service.AppointmentService;
+import com.schedule.app.application.usecase.AppointmentUseCase;
 import com.schedule.app.security.UserDetailsImpl;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/appointments")
 @CrossOrigin(origins = "*")
-@RequiredArgsConstructor
 public class AppointmentController {
 
-    private final AppointmentService appointmentService;
+    private final AppointmentUseCase appointmentUseCase;
+
+    public AppointmentController(AppointmentUseCase appointmentUseCase) {
+        this.appointmentUseCase = appointmentUseCase;
+    }
 
     @GetMapping
     public List<AppointmentResponse> getAppointments(@AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return appointmentService.getAllAppointments(currentUser);
+        return appointmentUseCase.getAllAppointments(currentUser);
     }
 
     @PostMapping
@@ -40,7 +42,7 @@ public class AppointmentController {
                                             @RequestParam(required = false, defaultValue = "false") boolean forceJoin,
                                             @AuthenticationPrincipal UserDetailsImpl currentUser) {
         try {
-            return appointmentService.createAppointment(request, forceReplace, forceJoin, currentUser);
+            return appointmentUseCase.createAppointment(request, forceReplace, forceJoin, currentUser);
         } catch (ResponseStatusException e) {
             String reason = e.getReason();
             if (reason != null && reason.startsWith("OVERLAP:")) {
@@ -56,6 +58,6 @@ public class AppointmentController {
     @PostMapping("/group")
     public AppointmentResponse createGroupMeeting(@Valid @RequestBody CreateAppointmentRequest request,
                                                    @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return appointmentService.createGroupMeeting(request, currentUser);
+        return appointmentUseCase.createGroupMeeting(request, currentUser);
     }
 }

@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import com.schedule.app.infrastructure.persistence.entity.Appointment;
 
 public interface AppointmentJpaRepository extends JpaRepository<Appointment, Long> {
-    @Query("SELECT a FROM Appointment a WHERE a.owner.id = :ownerId AND (a.timeSlot.start_time < :endTime AND a.timeSlot.end_time > :startTime)")
+    @Query("SELECT a FROM Appointment a WHERE a.owner.id = :ownerId AND (a.timeSlot.startTime < :endTime AND a.timeSlot.endTime > :startTime)")
     List<Appointment> findOverlappingAppointments(@Param("ownerId") Long ownerId, @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 
     List<Appointment> findByOwnerId(Long ownerId);
