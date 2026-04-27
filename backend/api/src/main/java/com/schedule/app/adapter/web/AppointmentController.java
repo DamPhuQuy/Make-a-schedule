@@ -2,16 +2,13 @@ package com.schedule.app.adapter.web;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.schedule.app.application.dto.request.CreateAppointmentRequest;
 import com.schedule.app.application.dto.response.AppointmentResponse;
@@ -38,21 +35,8 @@ public class AppointmentController {
 
     @PostMapping
     public AppointmentResponse createAppointment(@Valid @RequestBody CreateAppointmentRequest request,
-                                            @RequestParam(required = false, defaultValue = "false") boolean forceReplace,
-                                            @RequestParam(required = false, defaultValue = "false") boolean forceJoin,
                                             @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        try {
-            return appointmentUseCase.createAppointment(request, forceReplace, forceJoin, currentUser);
-        } catch (ResponseStatusException e) {
-            String reason = e.getReason();
-            if (reason != null && reason.startsWith("OVERLAP:")) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "\"" + reason + "\"");
-            }
-            if (reason != null && reason.startsWith("GROUP_MEETING:")) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "\"" + reason + "\"");
-            }
-            throw e;
-        }
+        return appointmentUseCase.createAppointment(request, currentUser);
     }
 
     @PostMapping("/group")

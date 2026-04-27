@@ -63,14 +63,14 @@ public class AppointmentService implements AppointmentUseCase {
 
     @Override
     @Transactional
-    public AppointmentResponse createAppointment(CreateAppointmentRequest request, boolean forceReplace, boolean forceJoin, UserDetailsImpl currentUser) {
+    public AppointmentResponse createAppointment(CreateAppointmentRequest request, UserDetailsImpl currentUser) {
         User user = userRepository.findById(currentUser.getId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_FOUND));
         validateAppointment(request);
 
         TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
 
-        if (!forceJoin && !forceReplace) {
+        if (!request.isForceJoin() && !request.isForceReplace()) {
             List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(request.getName());
             long newDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
 
@@ -82,7 +82,7 @@ public class AppointmentService implements AppointmentUseCase {
             }
         }
 
-        if (forceJoin) {
+        if (request.isForceJoin()) {
             GroupMeeting gm = null;
             List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(request.getName());
             long newDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
@@ -108,7 +108,7 @@ public class AppointmentService implements AppointmentUseCase {
             return mapGroupToResponse(gm);
         }
 
-        if (!forceReplace) {
+        if (!request.isForceReplace()) {
             List<Appointment> overlaps = appointmentRepository.findByOwnerId(user.getId()).stream()
                 .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
                 .toList();

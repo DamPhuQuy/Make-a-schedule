@@ -8,6 +8,6 @@ import com.schedule.app.security.UserDetailsImpl;
 
 public interface AppointmentUseCase {
     List<AppointmentResponse> getAllAppointments(UserDetailsImpl currentUser);
-    AppointmentResponse createAppointment(CreateAppointmentRequest request, boolean forceReplace, boolean forceJoin, UserDetailsImpl currentUser);
+    AppointmentResponse createAppointment(CreateAppointmentRequest request, UserDetailsImpl currentUser);
     AppointmentResponse createGroupMeeting(CreateAppointmentRequest request, UserDetailsImpl currentUser);
 }
