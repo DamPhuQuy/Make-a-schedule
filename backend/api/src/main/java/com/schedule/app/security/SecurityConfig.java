@@ -18,21 +18,24 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.schedule.app.security.jwt.JwtAuthenticationFilter;
+import com.schedule.app.security.jwt.JwtUseCase;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final JwtUtils jwtUtils;
+    private final JwtUseCase jwtUtils;
     private final UserDetailsServiceImpl userDetailsService;
 
-    public SecurityConfig(JwtUtils jwtUtils, UserDetailsServiceImpl userDetailsService) {
+    public SecurityConfig(JwtUseCase jwtUtils, UserDetailsServiceImpl userDetailsService) {
         this.jwtUtils = jwtUtils;
         this.userDetailsService = userDetailsService;
     }
 
     @Bean
-    public AuthTokenFilter authenticationJwtTokenFilter() {
-        return new AuthTokenFilter(jwtUtils, userDetailsService);
+    public JwtAuthenticationFilter authenticationJwtTokenFilter() {
+        return new JwtAuthenticationFilter(jwtUtils, userDetailsService);
     }
 
     @Bean
