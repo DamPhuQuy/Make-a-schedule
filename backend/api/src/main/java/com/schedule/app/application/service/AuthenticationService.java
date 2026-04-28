@@ -12,19 +12,20 @@ import com.schedule.app.application.usecase.AuthenticationUseCase;
 import com.schedule.app.domain.repository.RefreshTokenRepository;
 import com.schedule.app.domain.repository.UserRepository;
 import com.schedule.app.infrastructure.persistence.entity.RefreshToken;
-import com.schedule.app.security.JwtUtils;
+import com.schedule.app.security.UserDetailsImpl;
+import com.schedule.app.security.jwt.JwtUseCase;
 
 public class AuthenticationService implements AuthenticationUseCase {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final AuthenticationManager authenticationManager;
-    private final JwtUtils jwtUtils;
+    private final JwtUseCase jwtUtils;
 
     public AuthenticationService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             AuthenticationManager authenticationManager,
-            JwtUtils jwtUtils) {
+            JwtUseCase jwtUtils) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.authenticationManager = authenticationManager;
@@ -39,11 +40,14 @@ public class AuthenticationService implements AuthenticationUseCase {
             .orElseThrow(() -> new RuntimeException("Invalid email or password"));
 
         try {
-            Authentication auth = authenticationManager.authenticate(
+
+            Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, request.getPassword()));
 
-            String accessToken = jwtUtils.generateJwtToken(auth);
-            String refreshTokenString = jwtUtils.generateRefreshToken(email);
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+            String accessToken = jwtUtils.generateToken(userDetails);
+            String refreshTokenString = jwtUtils.generateRefreshToken(userDetails);
 
             refreshTokenRepository.deleteByUser(user);
 

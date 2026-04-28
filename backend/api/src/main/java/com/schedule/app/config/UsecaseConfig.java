@@ -18,7 +18,7 @@ import com.schedule.app.domain.repository.GroupMeetingRepository;
 import com.schedule.app.domain.repository.RefreshTokenRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
 import com.schedule.app.domain.repository.UserRepository;
-import com.schedule.app.security.JwtUtils;
+import com.schedule.app.security.jwt.JwtUseCase;
 
 @Configuration
 public class UsecaseConfig {
@@ -37,7 +37,7 @@ public class UsecaseConfig {
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             AuthenticationManager authenticationManager,
-            JwtUtils jwtUtils) {
+            JwtUseCase jwtUtils) {
         return new AuthenticationService(userRepository, refreshTokenRepository, authenticationManager, jwtUtils);
     }
 
