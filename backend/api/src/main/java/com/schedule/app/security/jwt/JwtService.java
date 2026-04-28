@@ -9,6 +9,8 @@ import java.util.function.Function;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.security.core.GrantedAuthority;
+
 import com.schedule.app.security.UserDetailsImpl;
 
 import io.jsonwebtoken.Claims;
@@ -25,14 +27,13 @@ public class JwtService implements JwtUseCase {
         this.jwtProperties = jwtProperties;
     }
 
-    // inject userId and roles into claims to let frontend use
     @Override
     public String generateToken(UserDetailsImpl userDetails) {
         Map<String, Object> extraClaims = new HashMap<>();
 
         extraClaims.put("userId", userDetails.getId());
         extraClaims.put("roles", userDetails.getAuthorities().stream()
-                .map(authority -> authority.getAuthority())
+                .map(GrantedAuthority::getAuthority)
                 .toList());
         extraClaims.put("type", "access");
 
@@ -50,10 +51,6 @@ public class JwtService implements JwtUseCase {
                 .compact();
     }
 
-    /**
-     * Refresh Token — payload gọn (chỉ sub + type=refresh).
-     * TTL lấy từ refreshExpirationMs (default: 7 ngày).
-     */
     @Override
     public String generateRefreshToken(UserDetailsImpl userDetails) {
         Map<String, Object> extraClaims = new HashMap<>();
