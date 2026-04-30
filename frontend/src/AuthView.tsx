@@ -20,10 +20,14 @@ export default function AuthView({ onLogin }: { onLogin: (token: string) => void
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
+      const body = isLogin
+        ? { username, password }
+        : { email: username, password };
+
       const response = await fetch(`http://localhost:8080${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();
