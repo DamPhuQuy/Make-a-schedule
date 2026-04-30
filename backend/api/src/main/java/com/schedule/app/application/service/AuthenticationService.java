@@ -3,6 +3,7 @@ package com.schedule.app.application.service;
 import java.time.Instant;
 
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
@@ -12,6 +13,7 @@ import com.schedule.app.application.usecase.AuthenticationUseCase;
 import com.schedule.app.domain.repository.RefreshTokenRepository;
 import com.schedule.app.domain.repository.UserRepository;
 import com.schedule.app.infrastructure.persistence.entity.RefreshToken;
+import com.schedule.app.infrastructure.persistence.entity.User;
 import com.schedule.app.security.UserDetailsImpl;
 import com.schedule.app.security.jwt.JwtUseCase;
 
@@ -36,15 +38,15 @@ public class AuthenticationService implements AuthenticationUseCase {
     public LoginResponse authenticate(LoginRequest request) {
         String email = request.getEmail().trim().toLowerCase();
 
-        var user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Invalid email or password"));
-
         try {
 
             Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, request.getPassword()));
 
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+            User user = userRepository.findByEmail(userDetails.getEmail())
+                .orElseThrow(() -> new BadCredentialsException("User not found"));
 
             String accessToken = jwtUtils.generateToken(userDetails);
             String refreshTokenString = jwtUtils.generateRefreshToken(userDetails);
@@ -61,9 +63,10 @@ public class AuthenticationService implements AuthenticationUseCase {
             refreshTokenRepository.save(refreshToken);
 
             return new LoginResponse(accessToken, refreshTokenString);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid email or password");
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            throw e;
         }
     }
 

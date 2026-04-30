@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 
 import lombok.Data;
 
-@ConfigurationProperties(prefix = "app.jwt")
+@ConfigurationProperties(prefix = "jwt")
 @Component
 @Data
 public class JwtProperties {

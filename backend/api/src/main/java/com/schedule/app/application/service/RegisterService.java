@@ -23,11 +23,16 @@ public class RegisterService implements RegisterUseCase {
             return new MessageResponse("Error: Email is already in use!");
         }
 
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            return new MessageResponse("Error: Password and Confirm Password do not match!");
+        }
+
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .build();
         userRepository.save(user);
+
 
         return new MessageResponse("User registered successfully!");
     }

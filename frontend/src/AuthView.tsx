@@ -1,17 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
-export default function AuthView({ onLogin }: { onLogin: (token: string) => void }) {
+class loginRequest {
+  email: string;
+  password: string;
+
+  constructor(email: string, password: string) {
+    this.email = email;
+    this.password = password;
+  }
+}
+
+class registerRequest {
+  email: string;
+  password: string;
+  confirmPassword: string;
+
+  constructor(email: string, password: string, confirmPassword: string) {
+    this.email = email;
+    this.password = password;
+    this.confirmPassword = confirmPassword;
+  }
+}
+
+export default function AuthView({
+  onLogin,
+}: {
+  onLogin: (token: string) => void;
+}) {
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) {
-      setError("Please fill in all fields.");
+    if (!email || !password || (!isLogin && password !== confirmPassword)) {
+      setError("Please fill in all fields correctly.");
       return;
     }
 
@@ -21,13 +48,13 @@ export default function AuthView({ onLogin }: { onLogin: (token: string) => void
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
       const body = isLogin
-        ? { username, password }
-        : { email: username, password };
+        ? new loginRequest(email, password)
+        : new registerRequest(email, password, confirmPassword);
 
       const response = await fetch(`http://localhost:8080${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -43,6 +70,7 @@ export default function AuthView({ onLogin }: { onLogin: (token: string) => void
         setIsLogin(true);
         setError("Registration successful! Please sign in.");
         setPassword("");
+        setConfirmPassword("");
       }
     } catch (err: any) {
       setError(err.message);
@@ -62,27 +90,33 @@ export default function AuthView({ onLogin }: { onLogin: (token: string) => void
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow rounded-lg sm:px-10">
           {error && (
-            <div className={`mb-4 p-2 text-sm rounded ${error.includes("successful") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+            <div
+              className={`mb-4 p-2 text-sm rounded ${error.includes("successful") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+            >
               {error}
             </div>
           )}
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Username</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
               <div className="mt-1">
                 <input
-                  type="text"
+                  type="email"
                   required
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
               <div className="mt-1">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -93,6 +127,23 @@ export default function AuthView({ onLogin }: { onLogin: (token: string) => void
                 />
               </div>
             </div>
+
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Confirm Password
+                </label>
+                <div className="mt-1">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* show up password */}
             <div>
@@ -131,7 +182,10 @@ export default function AuthView({ onLogin }: { onLogin: (token: string) => void
                 </span>
                 <button
                   type="button"
-                  onClick={() => { setIsLogin(!isLogin); setError(""); }}
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setError("");
+                  }}
                   className="font-medium text-blue-600 hover:text-blue-500"
                 >
                   {isLogin ? "Create an account" : "Sign in instead"}
