@@ -7,6 +7,8 @@ import AppointmentModal from "./AppointmentModal";
 import ConflictWarning from "./ConflictWarning";
 
 export default function CalendarView({ onLogout }: { onLogout: () => void }) {
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
   const [events, setEvents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
@@ -22,7 +24,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem("jwt");
-      const response = await fetch("http://localhost:8080/api/appointments", {
+      const response = await fetch(`${apiBaseUrl}/api/appointments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.status === 401) {
@@ -60,7 +62,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
     try {
       const token = localStorage.getItem("jwt");
 
-      let endpoint = "http://localhost:8080/api/appointments";
+      let endpoint = `${apiBaseUrl}/api/appointments`;
       let requestBody: any = {
         name: appointmentData.name,
         location: appointmentData.location,
@@ -70,12 +72,13 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
       };
 
       if (appointmentData.appointmentType === "group") {
-        endpoint = "http://localhost:8080/api/appointments/group";
+        endpoint = `${apiBaseUrl}/api/appointments/group`;
         if (appointmentData.participantUsernames) {
-          requestBody.participantUsernames = appointmentData.participantUsernames
-            .split(',')
-            .map((u: string) => u.trim())
-            .filter((u: string) => u.length > 0);
+          requestBody.participantUsernames =
+            appointmentData.participantUsernames
+              .split(",")
+              .map((u: string) => u.trim())
+              .filter((u: string) => u.length > 0);
         }
       } else {
         const query = new URLSearchParams({

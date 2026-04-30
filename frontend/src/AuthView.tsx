@@ -27,6 +27,8 @@ export default function AuthView({
 }: {
   onLogin: (token: string) => void;
 }) {
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,20 +53,23 @@ export default function AuthView({
         ? new loginRequest(email, password)
         : new registerRequest(email, password, confirmPassword);
 
-      const response = await fetch(`http://localhost:8080${endpoint}`, {
+      const response = await fetch(`${apiBaseUrl}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get("content-type") ?? "";
+      const data = contentType.includes("application/json")
+        ? await response.json()
+        : { message: await response.text() };
 
       if (!response.ok) {
         throw new Error(data.message || "Authentication failed");
       }
 
       if (isLogin) {
-        onLogin(data.token);
+        onLogin(data.accessToken);
       } else {
         // Automatically swap to login after registering
         setIsLogin(true);

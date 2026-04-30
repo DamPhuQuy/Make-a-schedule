@@ -18,6 +18,7 @@ import com.schedule.app.domain.repository.GroupMeetingRepository;
 import com.schedule.app.domain.repository.RefreshTokenRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
 import com.schedule.app.domain.repository.UserRepository;
+import com.schedule.app.security.UserDetailsServiceImpl;
 import com.schedule.app.security.jwt.JwtProperties;
 import com.schedule.app.security.jwt.JwtService;
 import com.schedule.app.security.jwt.JwtUseCase;
@@ -58,5 +59,10 @@ public class UsecaseConfig {
     @Bean
     public JwtUseCase jwtUseCase(JwtProperties jwtProperties) {
         return new JwtService(jwtProperties);
+    }
+
+    @Bean
+    public UserDetailsServiceImpl userDetailsService(UserRepository userRepository) {
+        return new UserDetailsServiceImpl(userRepository);
     }
 }

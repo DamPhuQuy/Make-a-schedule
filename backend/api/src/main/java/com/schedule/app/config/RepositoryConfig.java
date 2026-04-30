@@ -46,9 +46,4 @@ public class RepositoryConfig {
     public AppointmentRepository appointmentRepository(AppointmentJpaRepository appointmentJpaRepository) {
         return new AppointmentRepositoryAdapter(appointmentJpaRepository);
     }
-
-    @Bean
-    public UserDetailsServiceImpl userDetailsService(UserRepository userRepository) {
-        return new UserDetailsServiceImpl(userRepository);
-    }
 }
