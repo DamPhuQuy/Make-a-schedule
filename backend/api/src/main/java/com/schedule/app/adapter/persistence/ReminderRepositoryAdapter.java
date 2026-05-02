@@ -22,4 +22,14 @@ public class ReminderRepositoryAdapter implements ReminderRepository {
     public Reminder save(Reminder reminder) {
         return reminderJpaRepository.save(reminder);
     }
+
+    @Override
+    public void delete(Reminder reminder) {
+        reminderJpaRepository.delete(reminder);
+    }
+
+    @Override
+    public List<Reminder> findAllDueWithDynamicTime(java.time.Instant now) {
+        return reminderJpaRepository.findAllDueWithDynamicTime(now);
+    }
 }

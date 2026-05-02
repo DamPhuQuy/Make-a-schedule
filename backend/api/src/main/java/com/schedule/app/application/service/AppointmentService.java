@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.schedule.app.application.dto.request.CreateAppointmentRequest;
 import com.schedule.app.application.dto.response.AppointmentResponse;
 import com.schedule.app.application.usecase.AppointmentUseCase;
+import com.schedule.app.application.usecase.CreateReminderUseCase;
 import com.schedule.app.domain.repository.AppointmentRepository;
 import com.schedule.app.domain.repository.GroupMeetingRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
@@ -22,6 +23,7 @@ import com.schedule.app.infrastructure.persistence.entity.GroupMeetingParticipan
 import com.schedule.app.infrastructure.persistence.entity.Reminder;
 import com.schedule.app.infrastructure.persistence.entity.TimeSlot;
 import com.schedule.app.infrastructure.persistence.entity.User;
+
 import com.schedule.app.security.UserDetailsImpl;
 
 public class AppointmentService implements AppointmentUseCase {
@@ -30,13 +32,15 @@ public class AppointmentService implements AppointmentUseCase {
 
     private final AppointmentRepository appointmentRepository;
     private final GroupMeetingRepository groupMeetingRepository;
+    private final CreateReminderUseCase createReminderUseCase;
     private final ReminderRepository reminderRepository;
     private final UserRepository userRepository;
 
     public AppointmentService(AppointmentRepository appointmentRepository, GroupMeetingRepository groupMeetingRepository,
-            ReminderRepository reminderRepository, UserRepository userRepository) {
+            CreateReminderUseCase createReminderUseCase, ReminderRepository reminderRepository, UserRepository userRepository) {
         this.appointmentRepository = appointmentRepository;
         this.groupMeetingRepository = groupMeetingRepository;
+        this.createReminderUseCase = createReminderUseCase;
         this.reminderRepository = reminderRepository;
         this.userRepository = userRepository;
     }
@@ -132,11 +136,7 @@ public class AppointmentService implements AppointmentUseCase {
         appointment = appointmentRepository.save(appointment);
 
         if (request.getReminderMinutes() != null) {
-            Reminder reminder = Reminder.builder()
-                    .appointmentId(appointment.getId())
-                    .minutesBefore(request.getReminderMinutes())
-                    .build();
-            reminderRepository.save(reminder);
+            createReminderUseCase.execute(appointment.getId(), request.getReminderMinutes());
         }
 
         return mapToResponse(appointment);

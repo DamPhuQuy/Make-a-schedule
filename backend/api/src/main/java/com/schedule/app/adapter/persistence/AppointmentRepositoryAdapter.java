@@ -2,6 +2,7 @@ package com.schedule.app.adapter.persistence;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import com.schedule.app.domain.repository.AppointmentRepository;
 import com.schedule.app.infrastructure.persistence.AppointmentJpaRepository;
@@ -36,7 +37,13 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
     }
 
     @Override
+    public Optional<Appointment> findById(Long id) {
+        return appointmentJpaRepository.findById(id);
+    }
+
+    @Override
     public void deleteAll(List<Appointment> appointments) {
         appointmentJpaRepository.deleteAll(appointments);
     }
+
 }

@@ -35,6 +35,7 @@ public class AuthenticationService implements AuthenticationUseCase {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public LoginResponse authenticate(LoginRequest request) {
         String email = request.getEmail().trim().toLowerCase();
 
@@ -70,6 +71,7 @@ public class AuthenticationService implements AuthenticationUseCase {
         }
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void logout(String refreshToken) {
         refreshTokenRepository.deleteByToken(refreshToken);
     }

@@ -22,17 +22,25 @@ import com.schedule.app.security.UserDetailsServiceImpl;
 import com.schedule.app.security.jwt.JwtProperties;
 import com.schedule.app.security.jwt.JwtService;
 import com.schedule.app.security.jwt.JwtUseCase;
+import com.schedule.app.application.service.CreateReminderService;
+import com.schedule.app.application.usecase.CreateReminderUseCase;
 
 @Configuration
 public class UsecaseConfig {
 
     @Bean
+    public CreateReminderUseCase createReminderUseCase(ReminderRepository reminderRepository) {
+        return new CreateReminderService(reminderRepository);
+    }
+
+    @Bean
     public AppointmentUseCase appointmentUseCase(
             AppointmentRepository appointmentRepository,
             GroupMeetingRepository groupMeetingRepository,
+            CreateReminderUseCase createReminderUseCase,
             ReminderRepository reminderRepository,
             UserRepository userRepository) {
-        return new AppointmentService(appointmentRepository, groupMeetingRepository, reminderRepository, userRepository);
+        return new AppointmentService(appointmentRepository, groupMeetingRepository, createReminderUseCase, reminderRepository, userRepository);
     }
 
     @Bean
