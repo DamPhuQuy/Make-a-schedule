@@ -77,6 +77,7 @@ public class GlobalExceptionHandler {
                 .message(ex.getMessage())
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
+        ex.printStackTrace();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }

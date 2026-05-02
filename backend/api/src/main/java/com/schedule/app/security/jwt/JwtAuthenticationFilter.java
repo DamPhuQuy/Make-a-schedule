@@ -80,6 +80,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("JWT Parsing Exception: " + e.getMessage());
             // Token invalid/expired → tiếp tục chain không auth; Spring Security sẽ xử lý 401
         }
 
