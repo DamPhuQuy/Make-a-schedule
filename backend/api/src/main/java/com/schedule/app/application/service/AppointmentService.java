@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.schedule.app.application.dto.request.CreateAppointmentRequest;
+import com.schedule.app.application.dto.request.ValidateAppointmentRequest;
+import com.schedule.app.application.dto.response.AppointmentConflictResponse;
 import com.schedule.app.application.dto.response.AppointmentResponse;
 import com.schedule.app.application.usecase.AppointmentUseCase;
 import com.schedule.app.application.usecase.CreateReminderUseCase;
@@ -43,6 +45,75 @@ public class AppointmentService implements AppointmentUseCase {
         this.createReminderUseCase = createReminderUseCase;
         this.reminderRepository = reminderRepository;
         this.userRepository = userRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AppointmentConflictResponse validateAppointment(ValidateAppointmentRequest request, UserDetailsImpl currentUser) {
+        User user = userRepository.findById(currentUser.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_FOUND));
+
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment name cannot be empty");
+        }
+        if (request.getStartTime() == null || request.getEndTime() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start and end times are required");
+        }
+        if (!request.getEndTime().isAfter(request.getStartTime())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End time must be after start time");
+        }
+
+        TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
+        long requestedDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
+
+        List<GroupMeeting> matchingGroupMeetings = groupMeetingRepository.findByName(request.getName()).stream()
+            .filter(gm -> {
+                long gmDuration = Duration.between(gm.getTimeSlot().getStartTime(), gm.getTimeSlot().getEndTime()).toMinutes();
+                return gmDuration == requestedDuration;
+            })
+            .toList();
+
+        if (!matchingGroupMeetings.isEmpty()) {
+            GroupMeeting match = matchingGroupMeetings.get(0);
+            List<String> participantEmails = match.getParticipants().stream()
+                .map(p -> p.getUser().getEmail())
+                .toList();
+
+            return AppointmentConflictResponse.builder()
+                .conflictType(AppointmentConflictResponse.ConflictType.GROUP_MEETING_MATCH)
+                .message("A group meeting with the same name and duration already exists. Would you like to join it?")
+                .details(AppointmentConflictResponse.ConflictDetails.builder()
+                    .matchingGroupMeetingId(match.getId())
+                    .matchingGroupMeetingName(match.getName())
+                    .matchingGroupStartTime(match.getTimeSlot().getStartTime())
+                    .matchingGroupEndTime(match.getTimeSlot().getEndTime())
+                    .participants(participantEmails)
+                    .build())
+                .build();
+        }
+
+        List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
+            .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
+            .toList();
+
+        if (!overlappingAppointments.isEmpty()) {
+            Appointment conflict = overlappingAppointments.get(0);
+            return AppointmentConflictResponse.builder()
+                .conflictType(AppointmentConflictResponse.ConflictType.TIME_OVERLAP)
+                .message("You already have an appointment at this time. Would you like to choose another time or replace it?")
+                .details(AppointmentConflictResponse.ConflictDetails.builder()
+                    .conflictingAppointmentId(conflict.getId())
+                    .conflictingAppointmentName(conflict.getName())
+                    .conflictingStartTime(conflict.getTimeSlot().getStartTime())
+                    .conflictingEndTime(conflict.getTimeSlot().getEndTime())
+                    .build())
+                .build();
+        }
+
+        return AppointmentConflictResponse.builder()
+            .conflictType(AppointmentConflictResponse.ConflictType.NONE)
+            .message("No conflicts found. You can proceed with creating the appointment.")
+            .build();
     }
 
     @Override

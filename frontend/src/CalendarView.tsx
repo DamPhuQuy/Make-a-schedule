@@ -14,8 +14,10 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
   const [conflictType, setConflictType] = useState<string | null>(null);
   const [conflictMessage, setConflictMessage] = useState("");
+  const [conflictDetails, setConflictDetails] = useState<any>(null);
   const [pendingAppointment, setPendingAppointment] = useState<any>(null);
   const [culture, setCulture] = useState("en-US");
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
 
   useEffect(() => {
     fetchAppointments();
@@ -54,6 +56,16 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
     setIsModalOpen(true);
   };
 
+  const handleEventClick = (clickInfo: any) => {
+    setSelectedAppointment({
+      ...clickInfo.event.extendedProps,
+      name: clickInfo.event.title,
+      startTime: clickInfo.event.start,
+      endTime: clickInfo.event.end,
+      isGroupMeeting: clickInfo.event.title.includes("(Group)"),
+    });
+  };
+
   const handleSaveAppointment = async (
     appointmentData: any,
     forceReplace = false,
@@ -62,17 +74,17 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
     try {
       const token = localStorage.getItem("jwt");
 
-      let endpoint = `${apiBaseUrl}/api/appointments`;
-      let requestBody: any = {
-        name: appointmentData.name,
-        location: appointmentData.location,
-        startTime: appointmentData.startTime,
-        endTime: appointmentData.endTime,
-        reminderMinutes: appointmentData.reminderMinutes,
-      };
-
+      // For group meetings, skip validation and create directly
       if (appointmentData.appointmentType === "group") {
-        endpoint = `${apiBaseUrl}/api/appointments/group`;
+        const endpoint = `${apiBaseUrl}/api/appointments/group`;
+        const requestBody: any = {
+          name: appointmentData.name,
+          location: appointmentData.location,
+          startTime: appointmentData.startTime,
+          endTime: appointmentData.endTime,
+          reminderMinutes: appointmentData.reminderMinutes,
+        };
+
         if (appointmentData.participantUsernames) {
           requestBody.participantUsernames =
             appointmentData.participantUsernames
@@ -80,15 +92,95 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
               .map((u: string) => u.trim())
               .filter((u: string) => u.length > 0);
         }
-      } else {
-        const query = new URLSearchParams({
-          forceReplace: forceReplace.toString(),
-          forceJoin: forceJoin.toString(),
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
         });
-        endpoint = `${endpoint}?${query.toString()}`;
+
+        if (response.status === 401) {
+          onLogout();
+          return;
+        }
+
+        if (!response.ok) {
+          const msg = await response.json();
+          alert("Error: " + (msg.message || "Invalid appointment"));
+          return;
+        }
+
+        setIsModalOpen(false);
+        setConflictType(null);
+        setPendingAppointment(null);
+        fetchAppointments();
+        return;
       }
 
-      const response = await fetch(endpoint, {
+      // For normal appointments: Step 1 - Validate (only if not forcing)
+      if (!forceReplace && !forceJoin) {
+        const validateResponse = await fetch(
+          `${apiBaseUrl}/api/appointments/validate`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              name: appointmentData.name,
+              startTime: appointmentData.startTime,
+              endTime: appointmentData.endTime,
+            }),
+          },
+        );
+
+        if (validateResponse.status === 401) {
+          onLogout();
+          return;
+        }
+
+        if (!validateResponse.ok) {
+          const msg = await validateResponse.json();
+          alert("Error: " + (msg.message || "Validation failed"));
+          return;
+        }
+
+        const validationResult = await validateResponse.json();
+
+        // Handle conflicts
+        if (validationResult.conflictType === "TIME_OVERLAP") {
+          setConflictType("OVERLAP");
+          setConflictMessage(validationResult.message);
+          setConflictDetails(validationResult.details);
+          setPendingAppointment(appointmentData);
+          return;
+        }
+
+        if (validationResult.conflictType === "GROUP_MEETING_MATCH") {
+          setConflictType("GROUP_MEETING");
+          setConflictMessage(validationResult.message);
+          setConflictDetails(validationResult.details);
+          setPendingAppointment(appointmentData);
+          return;
+        }
+      }
+
+      // Step 2 - Create appointment
+      const requestBody: any = {
+        name: appointmentData.name,
+        location: appointmentData.location,
+        startTime: appointmentData.startTime,
+        endTime: appointmentData.endTime,
+        reminderMinutes: appointmentData.reminderMinutes,
+        forceReplace: forceReplace,
+        forceJoin: forceJoin,
+      };
+
+      const response = await fetch(`${apiBaseUrl}/api/appointments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,27 +194,6 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         return;
       }
 
-      if (response.status === 409) {
-        const errorData = await response.json();
-        const errorMessage =
-          errorData.message ||
-          (errorData.trace && errorData.trace.includes("OVERLAP:")
-            ? "OVERLAP"
-            : "GROUP_MEETING");
-
-        let type = errorMessage.includes("OVERLAP:")
-          ? "OVERLAP"
-          : errorMessage.includes("GROUP_MEETING:")
-            ? "GROUP_MEETING"
-            : "UNKNOWN";
-
-        setConflictType(type);
-        setConflictMessage(errorMessage);
-        setPendingAppointment(appointmentData);
-        // Keep modal open, show conflict warning on top
-        return;
-      }
-
       if (!response.ok) {
         const msg = await response.json();
         alert("Error: " + (msg.message || "Invalid appointment"));
@@ -131,6 +202,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
 
       setIsModalOpen(false);
       setConflictType(null);
+      setConflictDetails(null);
       setPendingAppointment(null);
       fetchAppointments();
     } catch (error) {
@@ -167,6 +239,15 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         className="bg-white rounded-xl shadow p-4"
         style={{ height: "80vh" }}
       >
+        {/* .fc-event: block appointment */}
+        <style>{`
+          .fc-event {
+            cursor: pointer;
+          }
+          .fc-event:hover {
+            opacity: 0.8;
+          }
+        `}</style>
         <FullCalendar
           plugins={[timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
@@ -177,6 +258,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           }}
           selectable={true}
           select={handleSelectSlot}
+          eventClick={handleEventClick}
           events={events}
           locale={culture === "vi" ? viLocale : undefined}
           height="100%"
@@ -205,12 +287,90 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         <ConflictWarning
           type={conflictType}
           message={conflictMessage}
-          onCancel={() => setConflictType(null)}
+          details={conflictDetails}
+          onCancel={() => {
+            setConflictType(null);
+            setConflictDetails(null);
+          }}
           onReplace={() =>
             handleSaveAppointment(pendingAppointment, true, false)
           }
           onJoin={() => handleSaveAppointment(pendingAppointment, false, true)}
         />
+      )}
+
+      {selectedAppointment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">
+              Chi tiết cuộc hẹn
+            </h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Tên:
+                </label>
+                <p className="text-gray-900">{selectedAppointment.name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Địa điểm:
+                </label>
+                <p className="text-gray-900">
+                  {selectedAppointment.location || "N/A"}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Thời gian bắt đầu:
+                </label>
+                <p className="text-gray-900">
+                  {new Date(selectedAppointment.startTime).toLocaleString(
+                    "vi-VN",
+                  )}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Thời gian kết thúc:
+                </label>
+                <p className="text-gray-900">
+                  {new Date(selectedAppointment.endTime).toLocaleString(
+                    "vi-VN",
+                  )}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Loại:
+                </label>
+                <p className="text-gray-900">
+                  {selectedAppointment.isGroupMeeting
+                    ? "Cuộc họp nhóm"
+                    : "Cuộc hẹn cá nhân"}
+                </p>
+              </div>
+              {selectedAppointment.reminderMinutes !== null && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-600">
+                    Nhắc nhở trước:
+                  </label>
+                  <p className="text-gray-900">
+                    {selectedAppointment.reminderMinutes} phút
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setSelectedAppointment(null)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
