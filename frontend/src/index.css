@@ -1,1 +1,24 @@
 @import "tailwindcss";
+.fc-theme-standard .fc-timegrid-slot {
+  height: 2.5em !important; /* Bạn có thể tăng giảm con số 3em này tùy ý */
+}
+
+/* Đảm bảo nhãn thời gian (bên trái) cũng căn chỉnh theo chiều cao mới */
+.fc-theme-standard .fc-timegrid-slot-label {
+  height: 2.5em !important;
+}
+/* 1. Tăng cỡ chữ cho cột thời gian bên trái (ví dụ: 08:00, 09:00...) */
+.fc-theme-standard .fc-timegrid-slot-label-cushion {
+  font-size: 0.95rem !important; /* Bạn có thể tăng lên 1.2rem, 1.5rem hoặc dùng px (ví dụ: 16px) */
+}
+
+/* 2. Tăng cỡ chữ cho các sự kiện (cuộc hẹn) hiển thị trên lịch */
+.fc-event-time, 
+.fc-event-title {
+  font-size: 0.9rem !important; 
+}
+
+/* 3. Tăng cỡ chữ cho thanh tiêu đề ngày tháng ở trên cùng (Thứ 2, Thứ 3...) */
+.fc-col-header-cell-cushion {
+  font-size: 1rem !important;
+}

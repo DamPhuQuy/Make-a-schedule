@@ -5,6 +5,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import { useEffect, useState } from "react";
 import AppointmentModal from "./AppointmentModal";
 import ConflictWarning from "./ConflictWarning";
+import AppointmentDetailModal from "./AppointmentDetailModal";
 
 export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   const apiBaseUrl =
@@ -12,6 +13,11 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   const [events, setEvents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
+  
+  // State thêm vào để xử lý xem chi tiết
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+
   const [conflictType, setConflictType] = useState<string | null>(null);
   const [conflictMessage, setConflictMessage] = useState("");
   const [pendingAppointment, setPendingAppointment] = useState<any>(null);
@@ -52,6 +58,18 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
     // Unselect the internal selection immediately so it doesn't linger visually after modal interactions
     selectInfo.view.calendar.unselect();
     setIsModalOpen(true);
+  };
+
+  // Hàm thêm vào để xử lý khi click vào sự kiện
+  const handleEventClick = (clickInfo: any) => {
+    const event = clickInfo.event;
+    setSelectedAppointment({
+      title: event.title,
+      start: event.start,
+      end: event.end,
+      ...event.extendedProps // Lấy thêm các field từ dữ liệu fetch
+    });
+    setIsDetailModalOpen(true);
   };
 
   const handleSaveAppointment = async (
@@ -177,6 +195,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           }}
           selectable={true}
           select={handleSelectSlot}
+          eventClick={handleEventClick} /* Thêm eventClick vào đây */
           events={events}
           locale={culture === "vi" ? viLocale : undefined}
           height="100%"
@@ -198,6 +217,14 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           slot={selectedSlot}
           onClose={() => setIsModalOpen(false)}
           onSave={(data: any) => handleSaveAppointment(data)}
+        />
+      )}
+
+      {/* Component Modal chi tiết được thêm vào */}
+      {isDetailModalOpen && selectedAppointment && (
+        <AppointmentDetailModal 
+          appointment={selectedAppointment} 
+          onClose={() => setIsDetailModalOpen(false)} 
         />
       )}
 
