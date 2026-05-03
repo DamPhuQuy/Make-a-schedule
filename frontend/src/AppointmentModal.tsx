@@ -120,9 +120,11 @@ export default function AppointmentModal({ slot, onClose, onSave }: any) {
               onChange={e => setReminder(e.target.value)}
             >
               <option value="0">None</option>
+              <option value="10">10 minutes before</option>
               <option value="15">15 minutes before</option>
               <option value="30">30 minutes before</option>
               <option value="60">1 hour before</option>
+              <option value="120">2 hours before</option>
             </select>
           </div>
           <div className="flex justify-end space-x-2 pt-4">
