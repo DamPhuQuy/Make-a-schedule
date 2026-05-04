@@ -42,6 +42,11 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
     }
 
     @Override
+    public void delete(Appointment appointment) {
+        appointmentJpaRepository.delete(appointment);
+    }
+
+    @Override
     public void deleteAll(List<Appointment> appointments) {
         appointmentJpaRepository.deleteAll(appointments);
     }

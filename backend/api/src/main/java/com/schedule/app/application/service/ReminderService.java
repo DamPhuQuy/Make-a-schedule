@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.schedule.app.domain.repository.AppointmentRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
-import com.schedule.app.infrastructure.persistence.entity.Appointment;
 import com.schedule.app.infrastructure.persistence.entity.Reminder;
 
 @Service
