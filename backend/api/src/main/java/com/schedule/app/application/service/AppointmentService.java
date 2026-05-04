@@ -63,13 +63,11 @@ public class AppointmentService implements AppointmentUseCase {
         }
 
         TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
-        long requestedDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
 
+        // Check for exact match with existing group meetings (same name, start time, and end time)
         List<GroupMeeting> matchingGroupMeetings = groupMeetingRepository.findByName(request.getName()).stream()
-            .filter(gm -> {
-                long gmDuration = Duration.between(gm.getTimeSlot().getStartTime(), gm.getTimeSlot().getEndTime()).toMinutes();
-                return gmDuration == requestedDuration;
-            })
+            .filter(gm -> gm.getTimeSlot().getStartTime().equals(request.getStartTime())
+                       && gm.getTimeSlot().getEndTime().equals(request.getEndTime()))
             .toList();
 
         if (!matchingGroupMeetings.isEmpty()) {
@@ -80,7 +78,7 @@ public class AppointmentService implements AppointmentUseCase {
 
             return AppointmentConflictResponse.builder()
                 .conflictType(AppointmentConflictResponse.ConflictType.GROUP_MEETING_MATCH)
-                .message("A group meeting with the same name and duration already exists. Would you like to join it?")
+                .message("A group meeting with the same name and time already exists. Would you like to join it?")
                 .details(AppointmentConflictResponse.ConflictDetails.builder()
                     .matchingGroupMeetingId(match.getId())
                     .matchingGroupMeetingName(match.getName())
@@ -91,6 +89,7 @@ public class AppointmentService implements AppointmentUseCase {
                 .build();
         }
 
+        // Check for time overlap with user's normal appointments
         List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
             .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
             .toList();
@@ -100,6 +99,27 @@ public class AppointmentService implements AppointmentUseCase {
             return AppointmentConflictResponse.builder()
                 .conflictType(AppointmentConflictResponse.ConflictType.TIME_OVERLAP)
                 .message("You already have an appointment at this time. Would you like to choose another time or replace it?")
+                .details(AppointmentConflictResponse.ConflictDetails.builder()
+                    .conflictingAppointmentId(conflict.getId())
+                    .conflictingAppointmentName(conflict.getName())
+                    .conflictingStartTime(conflict.getTimeSlot().getStartTime())
+                    .conflictingEndTime(conflict.getTimeSlot().getEndTime())
+                    .build())
+                .build();
+        }
+
+        // Check for time overlap with user's group meetings
+        List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
+            .filter(gm -> gm.getParticipants().stream()
+                .anyMatch(p -> p.getUser().getId().equals(user.getId())))
+            .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
+            .toList();
+
+        if (!overlappingGroupMeetings.isEmpty()) {
+            GroupMeeting conflict = overlappingGroupMeetings.get(0);
+            return AppointmentConflictResponse.builder()
+                .conflictType(AppointmentConflictResponse.ConflictType.TIME_OVERLAP)
+                .message("You already have a group meeting at this time. Would you like to choose another time or replace it?")
                 .details(AppointmentConflictResponse.ConflictDetails.builder()
                     .conflictingAppointmentId(conflict.getId())
                     .conflictingAppointmentName(conflict.getName())
@@ -175,34 +195,20 @@ public class AppointmentService implements AppointmentUseCase {
 
         TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
 
-        if (!request.isForceJoin() && !request.isForceReplace()) {
-            List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(request.getName());
-            long newDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
-
-            for (GroupMeeting existing : sameNameList) {
-                long existingDuration = Duration.between(existing.getTimeSlot().getStartTime(), existing.getTimeSlot().getEndTime()).toMinutes();
-                if (existingDuration == newDuration) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "GROUP_MEETING:" + existing.getId());
-                }
-            }
-        }
-
+        // Handle forceJoin: add user to existing group meeting
         if (request.isForceJoin()) {
-            GroupMeeting gm = null;
-            List<GroupMeeting> sameNameList = groupMeetingRepository.findByName(request.getName());
-            long newDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
-            for (GroupMeeting existing : sameNameList) {
-                long existingDuration = Duration.between(existing.getTimeSlot().getStartTime(), existing.getTimeSlot().getEndTime()).toMinutes();
-                if (existingDuration == newDuration) {
-                    gm = existing;
-                    break;
-                }
-            }
+            List<GroupMeeting> matchingGroupMeetings = groupMeetingRepository.findByName(request.getName()).stream()
+                .filter(gm -> gm.getTimeSlot().getStartTime().equals(request.getStartTime())
+                           && gm.getTimeSlot().getEndTime().equals(request.getEndTime()))
+                .toList();
 
-            if (gm == null) {
+            if (matchingGroupMeetings.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Group meeting not found");
             }
 
+            GroupMeeting gm = matchingGroupMeetings.get(0);
+
+            // Check if user is already a participant
             if (gm.getParticipants().stream().noneMatch(p -> p.getUser().getId().equals(user.getId()))) {
                 GroupMeetingParticipant participant = new GroupMeetingParticipant();
                 participant.setGroupMeeting(gm);
@@ -213,21 +219,57 @@ public class AppointmentService implements AppointmentUseCase {
             return mapGroupToResponse(gm);
         }
 
+        // Backend validation: Check for conflicts when not forcing replace
         if (!request.isForceReplace()) {
-            List<Appointment> overlaps = appointmentRepository.findByOwnerId(user.getId()).stream()
+            // Check for overlapping normal appointments
+            List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
                 .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
                 .toList();
 
-            if (!overlaps.isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "OVERLAP:" + overlaps.get(0).getId());
+            if (!overlappingAppointments.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Time conflict with existing appointment. Please choose another time or use forceReplace.");
             }
-        } else {
-            List<Appointment> overlaps = appointmentRepository.findByOwnerId(user.getId()).stream()
-                .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
+
+            // Check for overlapping group meetings
+            List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
+                .filter(gm -> gm.getParticipants().stream()
+                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
+                .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
                 .toList();
-            appointmentRepository.deleteAll(overlaps);
+
+            if (!overlappingGroupMeetings.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Time conflict with existing group meeting. Please choose another time or use forceReplace.");
+            }
         }
 
+        // Handle forceReplace: delete overlapping appointments and group meetings
+        if (request.isForceReplace()) {
+            // Delete overlapping normal appointments
+            List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
+                .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
+                .toList();
+            appointmentRepository.deleteAll(overlappingAppointments);
+
+            // Remove user from overlapping group meetings
+            List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
+                .filter(gm -> gm.getParticipants().stream()
+                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
+                .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
+                .toList();
+
+            for (GroupMeeting gm : overlappingGroupMeetings) {
+                gm.getParticipants().removeIf(p -> p.getUser().getId().equals(user.getId()));
+                if (gm.getParticipants().isEmpty()) {
+                    groupMeetingRepository.delete(gm);
+                } else {
+                    groupMeetingRepository.save(gm);
+                }
+            }
+        }
+
+        // Create new appointment
         Appointment appointment = new Appointment();
         appointment.setName(request.getName());
         appointment.setLocation(request.getLocation());
@@ -251,6 +293,56 @@ public class AppointmentService implements AppointmentUseCase {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_FOUND));
         validateAppointment(request);
         TimeSlot requestedSlot = new TimeSlot(request.getStartTime(), request.getEndTime());
+
+        // Backend validation: Check for conflicts when not forcing replace
+        if (!request.isForceReplace()) {
+            // Check for overlapping normal appointments
+            List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
+                .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
+                .toList();
+
+            if (!overlappingAppointments.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Time conflict with existing appointment. Please choose another time or use forceReplace.");
+            }
+
+            // Check for overlapping group meetings
+            List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
+                .filter(gm -> gm.getParticipants().stream()
+                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
+                .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
+                .toList();
+
+            if (!overlappingGroupMeetings.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Time conflict with existing group meeting. Please choose another time or use forceReplace.");
+            }
+        }
+
+        // Handle forceReplace: delete overlapping appointments and remove from group meetings
+        if (request.isForceReplace()) {
+            // Delete overlapping normal appointments
+            List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
+                .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
+                .toList();
+            appointmentRepository.deleteAll(overlappingAppointments);
+
+            // Remove user from overlapping group meetings
+            List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
+                .filter(gm -> gm.getParticipants().stream()
+                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
+                .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
+                .toList();
+
+            for (GroupMeeting gm : overlappingGroupMeetings) {
+                gm.getParticipants().removeIf(p -> p.getUser().getId().equals(user.getId()));
+                if (gm.getParticipants().isEmpty()) {
+                    groupMeetingRepository.delete(gm);
+                } else {
+                    groupMeetingRepository.save(gm);
+                }
+            }
+        }
 
         GroupMeeting gm = new GroupMeeting();
         gm.setName(request.getName());
@@ -306,8 +398,20 @@ public class AppointmentService implements AppointmentUseCase {
             if (!isParticipant) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant of this group meeting");
             }
-            groupMeetingRepository.delete(gm);
+
+            // Remove user from group meeting
+            gm.getParticipants().removeIf(p -> p.getUser().getId().equals(user.getId()));
+
+            // If no participants left, delete the group meeting
+            if (gm.getParticipants().isEmpty()) {
+                groupMeetingRepository.delete(gm);
+            } else {
+                groupMeetingRepository.save(gm);
+            }
+            return;
         }
+
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found");
     }
 
     private void validateAppointment(CreateAppointmentRequest request) {

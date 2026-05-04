@@ -97,8 +97,50 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
     try {
       const token = localStorage.getItem("jwt");
 
-      // For group meetings, skip validation and create directly
+      // For group meetings, validate first (only if not forcing)
       if (appointmentData.appointmentType === "group") {
+        // Step 1 - Validate for time overlap with user's normal appointments
+        if (!forceReplace) {
+          const validateResponse = await fetch(
+            `${apiBaseUrl}/api/appointments/validate`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                name: appointmentData.name,
+                startTime: appointmentData.startTime,
+                endTime: appointmentData.endTime,
+              }),
+            },
+          );
+
+          if (validateResponse.status === 401) {
+            onLogout();
+            return;
+          }
+
+          if (!validateResponse.ok) {
+            const msg = await validateResponse.json();
+            alert("Error: " + (msg.message || "Validation failed"));
+            return;
+          }
+
+          const validationResult = await validateResponse.json();
+
+          // Handle time overlap conflict
+          if (validationResult.conflictType === "TIME_OVERLAP") {
+            setConflictType("OVERLAP");
+            setConflictMessage(validationResult.message);
+            setConflictDetails(validationResult.details);
+            setPendingAppointment(appointmentData);
+            return;
+          }
+        }
+
+        // Step 2 - Create group meeting
         const endpoint = `${apiBaseUrl}/api/appointments/group`;
         const requestBody: any = {
           name: appointmentData.name,
@@ -234,7 +276,9 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   };
 
   const handleDeleteAppointment = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this appointment?")) {
+    if (
+      !globalThis.confirm("Are you sure you want to delete this appointment?")
+    ) {
       return;
     }
     try {
