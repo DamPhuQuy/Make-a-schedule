@@ -4,7 +4,9 @@ import java.util.List;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,6 +37,12 @@ public class AppointmentController {
         return appointmentUseCase.getAllAppointments(currentUser);
     }
 
+    @GetMapping("/{id}")
+    public AppointmentResponse getAppointmentById(@PathVariable Long id,
+                                                   @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return appointmentUseCase.getAppointmentById(id, currentUser);
+    }
+
     @PostMapping("/validate")
     public AppointmentConflictResponse validateAppointment(@Valid @RequestBody ValidateAppointmentRequest request,
                                                            @AuthenticationPrincipal UserDetailsImpl currentUser) {
@@ -51,5 +59,11 @@ public class AppointmentController {
     public AppointmentResponse createGroupMeeting(@Valid @RequestBody CreateAppointmentRequest request,
                                                    @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return appointmentUseCase.createGroupMeeting(request, currentUser);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteAppointment(@PathVariable Long id,
+                                   @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        appointmentUseCase.deleteAppointment(id, currentUser);
     }
 }

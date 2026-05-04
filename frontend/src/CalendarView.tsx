@@ -35,10 +35,17 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
       }
       const data = await response.json();
       const formattedData = data.map((appt: any) => ({
-        ...appt,
+        id: appt.id,
         start: new Date(appt.startTime),
         end: new Date(appt.endTime),
         title: appt.name + (appt.isGroupMeeting ? " (Group)" : ""),
+        extendedProps: {
+          id: appt.id,
+          name: appt.name,
+          location: appt.location,
+          appointmentType: appt.appointmentType,
+          isGroupMeeting: appt.isGroupMeeting,
+        },
       }));
       setEvents(formattedData);
     } catch (error) {
@@ -57,13 +64,29 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
   };
 
   const handleEventClick = (clickInfo: any) => {
-    setSelectedAppointment({
-      ...clickInfo.event.extendedProps,
-      name: clickInfo.event.title,
-      startTime: clickInfo.event.start,
-      endTime: clickInfo.event.end,
-      isGroupMeeting: clickInfo.event.title.includes("(Group)"),
-    });
+    const appointmentId = clickInfo.event.extendedProps.id;
+    fetchAppointmentDetails(appointmentId);
+  };
+
+  const fetchAppointmentDetails = async (id: number) => {
+    try {
+      const token = localStorage.getItem("jwt");
+      const response = await fetch(`${apiBaseUrl}/api/appointments/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.status === 401) {
+        onLogout();
+        return;
+      }
+      if (!response.ok) {
+        alert("Failed to fetch appointment details");
+        return;
+      }
+      const data = await response.json();
+      setSelectedAppointment(data);
+    } catch (error) {
+      console.error("Failed to fetch appointment details", error);
+    }
   };
 
   const handleSaveAppointment = async (
@@ -120,7 +143,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         return;
       }
 
-      // For normal appointments: Step 1 - Validate (only if not forcing)
+      // For normal appointments: Step 1 - Validate (only if not forcing replace or join)
       if (!forceReplace && !forceJoin) {
         const validateResponse = await fetch(
           `${apiBaseUrl}/api/appointments/validate`,
@@ -207,6 +230,38 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
       fetchAppointments();
     } catch (error) {
       console.error("Failed to save appointment", error);
+    }
+  };
+
+  const handleDeleteAppointment = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this appointment?")) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem("jwt");
+
+      const response = await fetch(`${apiBaseUrl}/api/appointments/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        return;
+      }
+
+      if (!response.ok) {
+        const msg = await response.json();
+        alert("Error: " + (msg.message || "Failed to delete appointment"));
+        return;
+      }
+
+      setSelectedAppointment(null);
+      fetchAppointments();
+    } catch (error) {
+      console.error("Failed to delete appointment", error);
     }
   };
 
@@ -345,11 +400,26 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
                   Loại:
                 </label>
                 <p className="text-gray-900">
-                  {selectedAppointment.isGroupMeeting
+                  {selectedAppointment.appointmentType === "GROUP_MEETING"
                     ? "Cuộc họp nhóm"
                     : "Cuộc hẹn cá nhân"}
                 </p>
               </div>
+              {selectedAppointment.appointmentType === "GROUP_MEETING" &&
+                selectedAppointment.participants && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600">
+                      Người tham gia:
+                    </label>
+                    <ul className="text-gray-900 list-disc list-inside">
+                      {selectedAppointment.participants.map(
+                        (participant: string, index: number) => (
+                          <li key={index}>{participant}</li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                )}
               {selectedAppointment.reminderMinutes !== null && (
                 <div>
                   <label className="block text-sm font-medium text-gray-600">
@@ -361,7 +431,13 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
                 </div>
               )}
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => handleDeleteAppointment(selectedAppointment.id)}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition cursor-pointer"
+              >
+                Xóa
+              </button>
               <button
                 onClick={() => setSelectedAppointment(null)}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition cursor-pointer"

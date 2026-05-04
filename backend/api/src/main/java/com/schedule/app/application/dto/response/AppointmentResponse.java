@@ -1,6 +1,9 @@
 package com.schedule.app.application.dto.response;
 
 import java.time.Instant;
+import java.util.List;
+
+import com.schedule.app.domain.model.AppointmentType;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,4 +23,6 @@ public class AppointmentResponse {
     private Integer reminderMinutes;
     private boolean isGroupMeeting;
     private String ownerUsername;
+    private AppointmentType appointmentType;
+    private List<String> participants;
 }

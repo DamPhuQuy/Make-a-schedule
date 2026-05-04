@@ -18,7 +18,6 @@ import com.schedule.app.infrastructure.persistence.GroupMeetingJpaRepository;
 import com.schedule.app.infrastructure.persistence.RefreshTokenJpaRepository;
 import com.schedule.app.infrastructure.persistence.ReminderJpaRepository;
 import com.schedule.app.infrastructure.persistence.UserJpaRepository;
-import com.schedule.app.security.UserDetailsServiceImpl;
 
 @Configuration
 public class RepositoryConfig {

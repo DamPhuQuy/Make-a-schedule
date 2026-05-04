@@ -10,7 +10,9 @@ import com.schedule.app.security.UserDetailsImpl;
 
 public interface AppointmentUseCase {
     List<AppointmentResponse> getAllAppointments(UserDetailsImpl currentUser);
+    AppointmentResponse getAppointmentById(Long id, UserDetailsImpl currentUser);
     AppointmentConflictResponse validateAppointment(ValidateAppointmentRequest request, UserDetailsImpl currentUser);
     AppointmentResponse createAppointment(CreateAppointmentRequest request, UserDetailsImpl currentUser);
     AppointmentResponse createGroupMeeting(CreateAppointmentRequest request, UserDetailsImpl currentUser);
+    void deleteAppointment(Long id, UserDetailsImpl currentUser);
 }

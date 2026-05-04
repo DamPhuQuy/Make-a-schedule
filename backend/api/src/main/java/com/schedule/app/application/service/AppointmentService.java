@@ -25,7 +25,6 @@ import com.schedule.app.infrastructure.persistence.entity.GroupMeetingParticipan
 import com.schedule.app.infrastructure.persistence.entity.Reminder;
 import com.schedule.app.infrastructure.persistence.entity.TimeSlot;
 import com.schedule.app.infrastructure.persistence.entity.User;
-
 import com.schedule.app.security.UserDetailsImpl;
 
 public class AppointmentService implements AppointmentUseCase {
@@ -134,6 +133,37 @@ public class AppointmentService implements AppointmentUseCase {
 
         dtos.addAll(groupDtos);
         return dtos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AppointmentResponse getAppointmentById(Long id, UserDetailsImpl currentUser) {
+        User user = userRepository.findById(currentUser.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_FOUND));
+
+        // Try to find as normal appointment
+        var appointment = appointmentRepository.findById(id);
+        if (appointment.isPresent()) {
+            Appointment appt = appointment.get();
+            if (!appt.getOwner().getId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You don't have access to this appointment");
+            }
+            return mapToResponse(appt);
+        }
+
+        // Try to find as group meeting
+        var groupMeeting = groupMeetingRepository.findById(id);
+        if (groupMeeting.isPresent()) {
+            GroupMeeting gm = groupMeeting.get();
+            boolean isParticipant = gm.getParticipants().stream()
+                .anyMatch(p -> p.getUser().getId().equals(user.getId()));
+            if (!isParticipant) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant of this group meeting");
+            }
+            return mapGroupToResponse(gm);
+        }
+
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found");
     }
 
     @Override
@@ -250,6 +280,36 @@ public class AppointmentService implements AppointmentUseCase {
         return mapGroupToResponse(gm);
     }
 
+    @Override
+    @Transactional
+    public void deleteAppointment(Long id, UserDetailsImpl currentUser) {
+        var user = userRepository.findById(currentUser.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_FOUND));
+
+        // Try to find as normal appointment
+        var appointment = appointmentRepository.findById(id);
+        if (appointment.isPresent()) {
+            Appointment appt = appointment.get();
+            if (!appt.getOwner().getId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You don't have access to this appointment");
+            }
+            appointmentRepository.delete(appt);
+            return;
+        }
+
+        // Try to find as group meeting
+        var groupMeeting = groupMeetingRepository.findById(id);
+        if (groupMeeting.isPresent()) {
+            GroupMeeting gm = groupMeeting.get();
+            boolean isParticipant = gm.getParticipants().stream()
+                .anyMatch(p -> p.getUser().getId().equals(user.getId()));
+            if (!isParticipant) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant of this group meeting");
+            }
+            groupMeetingRepository.delete(gm);
+        }
+    }
+
     private void validateAppointment(CreateAppointmentRequest request) {
         if (request.getName() == null || request.getName().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment name cannot be empty");
@@ -275,10 +335,16 @@ public class AppointmentService implements AppointmentUseCase {
             .reminderMinutes(reminderMinutes)
             .isGroupMeeting(false)
             .ownerUsername(param.getOwner().getEmail())
+            .appointmentType(com.schedule.app.domain.model.AppointmentType.NORMAL_APPOINTMENT)
+            .participants(null)
             .build();
     }
 
     private AppointmentResponse mapGroupToResponse(GroupMeeting param) {
+        List<String> participantEmails = param.getParticipants().stream()
+            .map(p -> p.getUser().getEmail())
+            .collect(Collectors.toList());
+
         return AppointmentResponse.builder()
             .id(param.getId())
             .name(param.getName())
@@ -288,6 +354,8 @@ public class AppointmentService implements AppointmentUseCase {
             .reminderMinutes(null)
             .isGroupMeeting(true)
             .ownerUsername("Group")
+            .appointmentType(com.schedule.app.domain.model.AppointmentType.GROUP_MEETING)
+            .participants(participantEmails)
             .build();
     }
 }

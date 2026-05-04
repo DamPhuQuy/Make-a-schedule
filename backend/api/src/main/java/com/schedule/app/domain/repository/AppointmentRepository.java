@@ -18,5 +18,7 @@ public interface AppointmentRepository {
 
     Appointment save(Appointment appointment);
 
+    void delete(Appointment appointment);
+
     void deleteAll(List<Appointment> appointments);
 }
