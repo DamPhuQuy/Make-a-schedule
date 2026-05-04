@@ -1,0 +1,68 @@
+@startuml Delete Appointment
+
+title Delete Appointment or Leave Group Meeting
+
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor User
+participant "AppointmentController" as Controller
+participant "AppointmentService" as Service
+participant "Data Access Layer" as DAL
+
+User -> Controller: DELETE /api/appointments/{id}
+activate Controller
+
+Controller -> Service: deleteAppointment(id, currentUser)
+activate Service
+
+Service -> DAL: findUser(userId)
+activate DAL
+DAL --> Service: User
+deactivate DAL
+
+Service -> DAL: findAppointmentById(id)
+activate DAL
+DAL --> Service: Appointment
+deactivate DAL
+
+alt [Found as normal appointment]
+    Service -> Service: checkOwnership(appointment, user)
+
+    Service -> DAL: deleteAppointment(id)
+    activate DAL
+    DAL --> Service: void
+    deactivate DAL
+
+    Service --> Controller: void
+    Controller --> User: Success
+
+else [Not found, check group meeting]
+    Service -> DAL: findGroupMeetingById(id)
+    activate DAL
+    DAL --> Service: GroupMeeting
+    deactivate DAL
+
+    Service -> Service: checkParticipation(groupMeeting, user)
+
+    Service -> DAL: removeParticipant(groupMeeting, user)
+    activate DAL
+    DAL --> Service: void
+    deactivate DAL
+
+    opt [No participants left]
+        Service -> DAL: deleteGroupMeeting(id)
+        activate DAL
+        DAL --> Service: void
+        deactivate DAL
+    end
+
+    Service --> Controller: void
+    Controller --> User: Success
+end
+
+deactivate Service
+deactivate Controller
+
+@enduml

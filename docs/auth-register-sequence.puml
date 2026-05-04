@@ -1,0 +1,54 @@
+@startuml User Registration
+
+title User Registration Flow
+
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor User
+participant "AuthController" as Controller
+participant "RegisterService" as Service
+participant "Data Access Layer" as DAL
+participant "BCrypt" as BCrypt
+
+User -> Controller: POST /api/auth/register\n{email, password, confirmPassword}
+activate Controller
+
+Controller -> Service: register(request)
+activate Service
+
+Service -> DAL: existsByEmail(email)
+activate DAL
+DAL --> Service: boolean
+deactivate DAL
+
+alt [Email already exists]
+    Service --> Controller: EmailExistsException
+    Controller --> User: Error
+    deactivate Service
+    deactivate Controller
+else [Password mismatch]
+    Service -> Service: validatePasswordMatch()
+    Service --> Controller: ValidationException
+    Controller --> User: Error
+    deactivate Service
+    deactivate Controller
+else [Valid registration]
+    Service -> BCrypt: encode(password)
+    activate BCrypt
+    BCrypt --> Service: hashedPassword
+    deactivate BCrypt
+
+    Service -> DAL: saveUser(email, hashedPassword)
+    activate DAL
+    DAL --> Service: User
+    deactivate DAL
+
+    Service --> Controller: SuccessMessage
+    deactivate Service
+    Controller --> User: Success
+    deactivate Controller
+end
+
+@enduml
