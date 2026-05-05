@@ -2,13 +2,15 @@ package com.schedule.app.appointment.adapter.in.web;
 
 import java.time.LocalDate;
 
+import com.schedule.app.appointment.domain.enums.TypeAppointment;
+
 public class UpdateAppointmentRequest {
     private String name;
     private String location;
     private LocalDate meetingDate;
     private Integer startHour;
     private Integer endHour;
-    private String typeAppointment;
+    private TypeAppointment typeAppointment;
 
     public UpdateAppointmentRequest() {
     }
@@ -53,11 +55,11 @@ public class UpdateAppointmentRequest {
         this.endHour = endHour;
     }
 
-    public String getTypeAppointment() {
+    public TypeAppointment getTypeAppointment() {
         return typeAppointment;
     }
 
-    public void setTypeAppointment(String typeAppointment) {
+    public void setTypeAppointment(TypeAppointment typeAppointment) {
         this.typeAppointment = typeAppointment;
     }
 }

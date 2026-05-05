@@ -1,6 +1,7 @@
 package com.schedule.app.appointment.adapter.in.web;
 
 import com.schedule.app.appointment.domain.model.Appointment;
+import com.schedule.app.appointment.domain.enums.TypeAppointment;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -11,7 +12,7 @@ public class AppointmentResponse {
     private LocalDate meetingDate;
     private Integer startHour;
     private Integer endHour;
-    private String typeAppointment;
+    private TypeAppointment typeAppointment;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -19,7 +20,7 @@ public class AppointmentResponse {
     }
 
     public AppointmentResponse(Long id, String name, String location, LocalDate meetingDate,
-                              Integer startHour, Integer endHour, String typeAppointment,
+                              Integer startHour, Integer endHour, TypeAppointment typeAppointment,
                               LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.name = name;
@@ -94,11 +95,11 @@ public class AppointmentResponse {
         this.endHour = endHour;
     }
 
-    public String getTypeAppointment() {
+    public TypeAppointment getTypeAppointment() {
         return typeAppointment;
     }
 
-    public void setTypeAppointment(String typeAppointment) {
+    public void setTypeAppointment(TypeAppointment typeAppointment) {
         this.typeAppointment = typeAppointment;
     }
 

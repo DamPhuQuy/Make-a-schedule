@@ -12,7 +12,7 @@ import java.util.Optional;
 @Repository
 public interface AppointmentJpaRepository extends JpaRepository<AppointmentEntity, Long> {
 
-    @Query("SELECT a FROM AppointmentEntity a WHERE a.name = :name AND a.typeAppointment = 'Nhóm' " +
+    @Query("SELECT a FROM AppointmentEntity a WHERE a.name = :name AND a.typeAppointment = 'GROUP_MEETING' " +
            "AND a.meetingDate = :date AND a.startHour = :startHour AND a.endHour = :endHour")
     Optional<AppointmentEntity> findGroupAppointment(@Param("name") String name,
                                                      @Param("date") LocalDate date,

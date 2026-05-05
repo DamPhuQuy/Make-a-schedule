@@ -1,12 +1,29 @@
 package com.schedule.app.reminder.adapter.out.persistence;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.schedule.app.appointment.adapter.out.persistence.AppointmentEntity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(name = "reminder")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReminderEntity {
 
     @Id
@@ -23,48 +40,5 @@ public class ReminderEntity {
     private LocalDateTime updatedAt;
 
     @ManyToMany(mappedBy = "reminders")
-    private Set<com.schedule.app.appointment.adapter.out.persistence.AppointmentEntity> appointments = new HashSet<>();
-
-    public ReminderEntity() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public Set<com.schedule.app.appointment.adapter.out.persistence.AppointmentEntity> getAppointments() {
-        return appointments;
-    }
-
-    public void setAppointments(Set<com.schedule.app.appointment.adapter.out.persistence.AppointmentEntity> appointments) {
-        this.appointments = appointments;
-    }
+    private Set<AppointmentEntity> appointments = new HashSet<>();
 }
