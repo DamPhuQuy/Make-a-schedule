@@ -1,13 +1,13 @@
 package com.schedule.app.appointment.adapter.out.persistence;
 
-import com.schedule.app.appointment.domain.model.Appointment;
-import com.schedule.app.appointment.domain.port.out.AppointmentRepository;
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+
+import com.schedule.app.appointment.domain.model.Appointment;
+import com.schedule.app.appointment.domain.port.out.AppointmentRepository;
 
 @Component
 public class AppointmentRepositoryAdapter implements AppointmentRepository {
@@ -37,7 +37,7 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
     public List<Appointment> findAll() {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -66,6 +66,6 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
     public List<Appointment> findByUserId(Long userId) {
         return jpaRepository.findByUserId(userId).stream()
                 .map(mapper::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 }

@@ -1,7 +1,8 @@
 package com.schedule.app.user.adapter.out.persistence;
 
-import com.schedule.app.user.domain.model.User;
 import org.springframework.stereotype.Component;
+
+import com.schedule.app.user.domain.model.User;
 
 @Component
 public class UserMapper {

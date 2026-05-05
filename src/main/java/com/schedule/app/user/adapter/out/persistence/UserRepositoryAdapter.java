@@ -1,12 +1,13 @@
 package com.schedule.app.user.adapter.out.persistence;
 
-import com.schedule.app.user.domain.model.User;
-import com.schedule.app.user.domain.port.out.UserRepository;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+
+import com.schedule.app.user.domain.model.User;
+import com.schedule.app.user.domain.port.out.UserRepository;
 
 @Component
 public class UserRepositoryAdapter implements UserRepository {
