@@ -1,51 +1,55 @@
-services:
-  db:
-    image: postgres:17-alpine
-    environment:
-      TZ: Asia/Ho_Chi_Minh
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
+version: "3.9"
 
-  backend:
-    build: ./backend/api
-    ports:
-      - "8080:8080"
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: schedule-postgres
     env_file:
       - .env
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - app-network
-
-  frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_API_BASE_URL: http://localhost:8080
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5173:80"
-    depends_on:
-      backend:
-        condition: service_started
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
     networks:
-      - app-network
+      - schedule-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: schedule-app
+    env_file:
+      - .env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    restart: unless-stopped
+    networks:
+      - schedule-network
 
 volumes:
   postgres_data:
 
 networks:
-  app-network:
+  schedule-network:
     driver: bridge

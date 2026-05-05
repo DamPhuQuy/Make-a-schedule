@@ -1,0 +1,36 @@
+# Add .dockerignore to exclude unnecessary files from Docker build context
+target/
+!target/*.jar
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Docker files
+docker-compose.yaml
+Dockerfile
+
+# Environment files
+.env
+.env.example
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
