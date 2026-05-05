@@ -20,8 +20,7 @@ public class AppointmentApiService {
     }
 
     public List<AppointmentDTO> getAllAppointments() throws Exception {
-        String response = apiClient.get("/appointments", String.class);
-        return objectMapper.readValue(response, new TypeReference<List<AppointmentDTO>>() {});
+        return apiClient.get("/appointments", new TypeReference<List<AppointmentDTO>>() {});
     }
 
     public AppointmentDTO getAppointmentById(Long id) throws Exception {
@@ -29,8 +28,7 @@ public class AppointmentApiService {
     }
 
     public List<AppointmentDTO> getAppointmentsByUserId(Long userId) throws Exception {
-        String response = apiClient.get("/appointments/user/" + userId, String.class);
-        return objectMapper.readValue(response, new TypeReference<List<AppointmentDTO>>() {});
+        return apiClient.get("/appointments/user/" + userId, new TypeReference<List<AppointmentDTO>>() {});
     }
 
     public AppointmentDTO createAppointment(CreateAppointmentRequest request) throws Exception {

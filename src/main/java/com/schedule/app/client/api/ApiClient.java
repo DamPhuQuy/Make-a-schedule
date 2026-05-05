@@ -6,6 +6,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
@@ -33,6 +34,22 @@ public class ApiClient {
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             return objectMapper.readValue(response.body(), responseType);
+        } else {
+            throw new RuntimeException("API Error: " + response.statusCode() + " - " + response.body());
+        }
+    }
+
+    public <T> T get(String endpoint, TypeReference<T> typeReference) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + endpoint))
+                .header("Content-Type", "application/json")
+                .GET()
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() >= 200 && response.statusCode() < 300) {
+            return objectMapper.readValue(response.body(), typeReference);
         } else {
             throw new RuntimeException("API Error: " + response.statusCode() + " - " + response.body());
         }
