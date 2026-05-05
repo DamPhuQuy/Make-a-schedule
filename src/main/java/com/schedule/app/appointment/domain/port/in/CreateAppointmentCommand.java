@@ -2,6 +2,8 @@ package com.schedule.app.appointment.domain.port.in;
 
 import java.time.LocalDate;
 
+import com.schedule.app.appointment.domain.enums.TypeAppointment;
+
 public class CreateAppointmentCommand {
     private Long userId;
     private String name;
@@ -9,13 +11,13 @@ public class CreateAppointmentCommand {
     private LocalDate meetingDate;
     private Integer startHour;
     private Integer endHour;
-    private String typeAppointment;
+    private TypeAppointment typeAppointment;
 
     public CreateAppointmentCommand() {
     }
 
     public CreateAppointmentCommand(Long userId, String name, String location, LocalDate meetingDate,
-                                   Integer startHour, Integer endHour, String typeAppointment) {
+                                   Integer startHour, Integer endHour, TypeAppointment typeAppointment) {
         this.userId = userId;
         this.name = name;
         this.location = location;
@@ -73,11 +75,11 @@ public class CreateAppointmentCommand {
         this.endHour = endHour;
     }
 
-    public String getTypeAppointment() {
+    public TypeAppointment getTypeAppointment() {
         return typeAppointment;
     }
 
-    public void setTypeAppointment(String typeAppointment) {
+    public void setTypeAppointment(TypeAppointment typeAppointment) {
         this.typeAppointment = typeAppointment;
     }
 }

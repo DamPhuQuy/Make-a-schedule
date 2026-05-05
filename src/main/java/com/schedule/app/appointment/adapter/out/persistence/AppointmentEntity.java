@@ -1,13 +1,36 @@
 package com.schedule.app.appointment.adapter.out.persistence;
 
-import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.schedule.app.appointment.domain.enums.TypeAppointment;
+import com.schedule.app.reminder.adapter.out.persistence.ReminderEntity;
+import com.schedule.app.user.adapter.out.persistence.UserEntity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(name = "appointment")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class AppointmentEntity {
 
     @Id
@@ -30,7 +53,8 @@ public class AppointmentEntity {
     private Integer endHour;
 
     @Column(name = "type_appointment", nullable = false)
-    private String typeAppointment;
+    @Enumerated(EnumType.STRING)
+    private TypeAppointment typeAppointment;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -44,7 +68,7 @@ public class AppointmentEntity {
         joinColumns = @JoinColumn(name = "appointment_id"),
         inverseJoinColumns = @JoinColumn(name = "user_id")
     )
-    private Set<com.schedule.app.user.adapter.out.persistence.UserEntity> users = new HashSet<>();
+    private Set<UserEntity> users = new HashSet<>();
 
     @ManyToMany
     @JoinTable(
@@ -52,96 +76,5 @@ public class AppointmentEntity {
         joinColumns = @JoinColumn(name = "appointment_id"),
         inverseJoinColumns = @JoinColumn(name = "reminder_id")
     )
-    private Set<com.schedule.app.reminder.adapter.out.persistence.ReminderEntity> reminders = new HashSet<>();
-
-    public AppointmentEntity() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public LocalDate getMeetingDate() {
-        return meetingDate;
-    }
-
-    public void setMeetingDate(LocalDate meetingDate) {
-        this.meetingDate = meetingDate;
-    }
-
-    public Integer getStartHour() {
-        return startHour;
-    }
-
-    public void setStartHour(Integer startHour) {
-        this.startHour = startHour;
-    }
-
-    public Integer getEndHour() {
-        return endHour;
-    }
-
-    public void setEndHour(Integer endHour) {
-        this.endHour = endHour;
-    }
-
-    public String getTypeAppointment() {
-        return typeAppointment;
-    }
-
-    public void setTypeAppointment(String typeAppointment) {
-        this.typeAppointment = typeAppointment;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public Set<com.schedule.app.user.adapter.out.persistence.UserEntity> getUsers() {
-        return users;
-    }
-
-    public void setUsers(Set<com.schedule.app.user.adapter.out.persistence.UserEntity> users) {
-        this.users = users;
-    }
-
-    public Set<com.schedule.app.reminder.adapter.out.persistence.ReminderEntity> getReminders() {
-        return reminders;
-    }
-
-    public void setReminders(Set<com.schedule.app.reminder.adapter.out.persistence.ReminderEntity> reminders) {
-        this.reminders = reminders;
-    }
+    private Set<ReminderEntity> reminders = new HashSet<>();
 }

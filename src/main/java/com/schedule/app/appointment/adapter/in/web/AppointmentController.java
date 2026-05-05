@@ -1,13 +1,31 @@
 package com.schedule.app.appointment.adapter.in.web;
 
-import com.schedule.app.appointment.domain.model.Appointment;
-import com.schedule.app.appointment.domain.port.in.*;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.schedule.app.appointment.domain.model.Appointment;
+import com.schedule.app.appointment.domain.port.in.AddReminderToAppointmentUseCase;
+import com.schedule.app.appointment.domain.port.in.AddUserToAppointmentUseCase;
+import com.schedule.app.appointment.domain.port.in.CreateAppointmentCommand;
+import com.schedule.app.appointment.domain.port.in.CreateAppointmentUseCase;
+import com.schedule.app.appointment.domain.port.in.DeleteAppointmentUseCase;
+import com.schedule.app.appointment.domain.port.in.GetAppointmentUseCase;
+import com.schedule.app.appointment.domain.port.in.JoinGroupMeetingUseCase;
+import com.schedule.app.appointment.domain.port.in.ReplaceAppointmentUseCase;
+import com.schedule.app.appointment.domain.port.in.UpdateAppointmentCommand;
+import com.schedule.app.appointment.domain.port.in.UpdateAppointmentUseCase;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -20,19 +38,25 @@ public class AppointmentController {
     private final DeleteAppointmentUseCase deleteAppointmentUseCase;
     private final AddUserToAppointmentUseCase addUserToAppointmentUseCase;
     private final AddReminderToAppointmentUseCase addReminderToAppointmentUseCase;
+    private final JoinGroupMeetingUseCase joinGroupMeetingUseCase;
+    private final ReplaceAppointmentUseCase replaceAppointmentUseCase;
 
     public AppointmentController(CreateAppointmentUseCase createAppointmentUseCase,
                                 GetAppointmentUseCase getAppointmentUseCase,
                                 UpdateAppointmentUseCase updateAppointmentUseCase,
                                 DeleteAppointmentUseCase deleteAppointmentUseCase,
                                 AddUserToAppointmentUseCase addUserToAppointmentUseCase,
-                                AddReminderToAppointmentUseCase addReminderToAppointmentUseCase) {
+                                AddReminderToAppointmentUseCase addReminderToAppointmentUseCase,
+                                JoinGroupMeetingUseCase joinGroupMeetingUseCase,
+                                ReplaceAppointmentUseCase replaceAppointmentUseCase) {
         this.createAppointmentUseCase = createAppointmentUseCase;
         this.getAppointmentUseCase = getAppointmentUseCase;
         this.updateAppointmentUseCase = updateAppointmentUseCase;
         this.deleteAppointmentUseCase = deleteAppointmentUseCase;
         this.addUserToAppointmentUseCase = addUserToAppointmentUseCase;
         this.addReminderToAppointmentUseCase = addReminderToAppointmentUseCase;
+        this.joinGroupMeetingUseCase = joinGroupMeetingUseCase;
+        this.replaceAppointmentUseCase = replaceAppointmentUseCase;
     }
 
     @PostMapping
@@ -107,5 +131,28 @@ public class AppointmentController {
                                                          @PathVariable Long reminderId) {
         addReminderToAppointmentUseCase.addReminderToAppointment(appointmentId, reminderId);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/group-meetings/{groupMeetingId}/join/{userId}")
+    public ResponseEntity<Void> joinGroupMeeting(@PathVariable Long groupMeetingId,
+                                                 @PathVariable Long userId) {
+        joinGroupMeetingUseCase.joinGroupMeeting(userId, groupMeetingId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{oldAppointmentId}/replace")
+    public ResponseEntity<AppointmentResponse> replaceAppointment(@PathVariable Long oldAppointmentId,
+                                                                  @RequestBody CreateAppointmentRequest request) {
+        CreateAppointmentCommand command = new CreateAppointmentCommand(
+                request.getUserId(),
+                request.getName(),
+                request.getLocation(),
+                request.getMeetingDate(),
+                request.getStartHour(),
+                request.getEndHour(),
+                request.getTypeAppointment()
+        );
+        Appointment appointment = replaceAppointmentUseCase.replaceAppointment(oldAppointmentId, command);
+        return ResponseEntity.ok(AppointmentResponse.fromDomain(appointment));
     }
 }

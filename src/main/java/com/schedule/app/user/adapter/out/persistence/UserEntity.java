@@ -1,12 +1,29 @@
 package com.schedule.app.user.adapter.out.persistence;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.schedule.app.appointment.adapter.out.persistence.AppointmentEntity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserEntity {
 
     @Id
@@ -26,56 +43,5 @@ public class UserEntity {
     private LocalDateTime updatedAt;
 
     @ManyToMany(mappedBy = "users")
-    private Set<com.schedule.app.appointment.adapter.out.persistence.AppointmentEntity> appointments = new HashSet<>();
-
-    public UserEntity() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public Set<com.schedule.app.appointment.adapter.out.persistence.AppointmentEntity> getAppointments() {
-        return appointments;
-    }
-
-    public void setAppointments(Set<com.schedule.app.appointment.adapter.out.persistence.AppointmentEntity> appointments) {
-        this.appointments = appointments;
-    }
+    private Set<AppointmentEntity> appointments = new HashSet<>();
 }
