@@ -1,9 +1,14 @@
 package com.schedule.app.infrastructure.persistence.entity;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,15 +17,21 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "appointments")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "appointment_type")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Appointment extends Base {
+public abstract class Appointment {
 
-    private String location;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private User owner;
+    @Column(nullable = false)
+    private String name;
+
+    @Embedded
+    private TimeSlot timeSlot;
 }

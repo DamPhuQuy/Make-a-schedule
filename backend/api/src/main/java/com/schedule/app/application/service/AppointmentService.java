@@ -19,7 +19,7 @@ import com.schedule.app.domain.repository.AppointmentRepository;
 import com.schedule.app.domain.repository.GroupMeetingRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
 import com.schedule.app.domain.repository.UserRepository;
-import com.schedule.app.infrastructure.persistence.entity.Appointment;
+import com.schedule.app.infrastructure.persistence.entity.PersonalAppointment;
 import com.schedule.app.infrastructure.persistence.entity.GroupMeeting;
 import com.schedule.app.infrastructure.persistence.entity.GroupMeetingParticipant;
 import com.schedule.app.infrastructure.persistence.entity.Reminder;
@@ -36,14 +36,17 @@ public class AppointmentService implements AppointmentUseCase {
     private final CreateReminderUseCase createReminderUseCase;
     private final ReminderRepository reminderRepository;
     private final UserRepository userRepository;
+    private final com.schedule.app.domain.repository.BaseRepository baseRepository;
 
     public AppointmentService(AppointmentRepository appointmentRepository, GroupMeetingRepository groupMeetingRepository,
-            CreateReminderUseCase createReminderUseCase, ReminderRepository reminderRepository, UserRepository userRepository) {
+            CreateReminderUseCase createReminderUseCase, ReminderRepository reminderRepository, UserRepository userRepository,
+            com.schedule.app.domain.repository.BaseRepository baseRepository) {
         this.appointmentRepository = appointmentRepository;
         this.groupMeetingRepository = groupMeetingRepository;
         this.createReminderUseCase = createReminderUseCase;
         this.reminderRepository = reminderRepository;
         this.userRepository = userRepository;
+        this.baseRepository = baseRepository;
     }
 
     @Override
@@ -89,37 +92,16 @@ public class AppointmentService implements AppointmentUseCase {
                 .build();
         }
 
-        // Check for time overlap with user's normal appointments
-        List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
-            .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
-            .toList();
+        // Check for time overlap with user's appointments (both personal and group meetings)
+        List<com.schedule.app.infrastructure.persistence.entity.Appointment> overlappingAppointments =
+            baseRepository.findOverlappingAppointmentsForUser(user.getId(), request.getStartTime(), request.getEndTime());
 
         if (!overlappingAppointments.isEmpty()) {
-            Appointment conflict = overlappingAppointments.get(0);
+            com.schedule.app.infrastructure.persistence.entity.Appointment conflict = overlappingAppointments.get(0);
+            String conflictType = conflict instanceof GroupMeeting ? "group meeting" : "appointment";
             return AppointmentConflictResponse.builder()
                 .conflictType(AppointmentConflictResponse.ConflictType.TIME_OVERLAP)
-                .message("You already have an appointment at this time. Would you like to choose another time or replace it?")
-                .details(AppointmentConflictResponse.ConflictDetails.builder()
-                    .conflictingAppointmentId(conflict.getId())
-                    .conflictingAppointmentName(conflict.getName())
-                    .conflictingStartTime(conflict.getTimeSlot().getStartTime())
-                    .conflictingEndTime(conflict.getTimeSlot().getEndTime())
-                    .build())
-                .build();
-        }
-
-        // Check for time overlap with user's group meetings
-        List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
-            .filter(gm -> gm.getParticipants().stream()
-                .anyMatch(p -> p.getUser().getId().equals(user.getId())))
-            .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
-            .toList();
-
-        if (!overlappingGroupMeetings.isEmpty()) {
-            GroupMeeting conflict = overlappingGroupMeetings.get(0);
-            return AppointmentConflictResponse.builder()
-                .conflictType(AppointmentConflictResponse.ConflictType.TIME_OVERLAP)
-                .message("You already have a group meeting at this time. Would you like to choose another time or replace it?")
+                .message("You already have a " + conflictType + " at this time. Would you like to choose another time or replace it?")
                 .details(AppointmentConflictResponse.ConflictDetails.builder()
                     .conflictingAppointmentId(conflict.getId())
                     .conflictingAppointmentName(conflict.getName())
@@ -164,7 +146,7 @@ public class AppointmentService implements AppointmentUseCase {
         // Try to find as normal appointment
         var appointment = appointmentRepository.findById(id);
         if (appointment.isPresent()) {
-            Appointment appt = appointment.get();
+            PersonalAppointment appt = appointment.get();
             if (!appt.getOwner().getId().equals(user.getId())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You don't have access to this appointment");
             }
@@ -221,56 +203,37 @@ public class AppointmentService implements AppointmentUseCase {
 
         // Backend validation: Check for conflicts when not forcing replace
         if (!request.isForceReplace()) {
-            // Check for overlapping normal appointments
-            List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
-                .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
-                .toList();
+            List<com.schedule.app.infrastructure.persistence.entity.Appointment> overlappingAppointments =
+                baseRepository.findOverlappingAppointmentsForUser(user.getId(), request.getStartTime(), request.getEndTime());
 
             if (!overlappingAppointments.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Time conflict with existing appointment. Please choose another time or use forceReplace.");
             }
-
-            // Check for overlapping group meetings
-            List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
-                .filter(gm -> gm.getParticipants().stream()
-                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
-                .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
-                .toList();
-
-            if (!overlappingGroupMeetings.isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Time conflict with existing group meeting. Please choose another time or use forceReplace.");
-            }
         }
 
-        // Handle forceReplace: delete overlapping appointments and group meetings
+        // Handle forceReplace: delete overlapping appointments
         if (request.isForceReplace()) {
-            // Delete overlapping normal appointments
-            List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
-                .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
-                .toList();
-            appointmentRepository.deleteAll(overlappingAppointments);
+            List<com.schedule.app.infrastructure.persistence.entity.Appointment> overlappingAppointments =
+                baseRepository.findOverlappingAppointmentsForUser(user.getId(), request.getStartTime(), request.getEndTime());
 
-            // Remove user from overlapping group meetings
-            List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
-                .filter(gm -> gm.getParticipants().stream()
-                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
-                .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
-                .toList();
-
-            for (GroupMeeting gm : overlappingGroupMeetings) {
-                gm.getParticipants().removeIf(p -> p.getUser().getId().equals(user.getId()));
-                if (gm.getParticipants().isEmpty()) {
-                    groupMeetingRepository.delete(gm);
-                } else {
-                    groupMeetingRepository.save(gm);
+            for (com.schedule.app.infrastructure.persistence.entity.Appointment overlap : overlappingAppointments) {
+                if (overlap instanceof GroupMeeting) {
+                    GroupMeeting gm = (GroupMeeting) overlap;
+                    gm.getParticipants().removeIf(p -> p.getUser().getId().equals(user.getId()));
+                    if (gm.getParticipants().isEmpty()) {
+                        groupMeetingRepository.delete(gm);
+                    } else {
+                        groupMeetingRepository.save(gm);
+                    }
+                } else if (overlap instanceof PersonalAppointment) {
+                    appointmentRepository.delete((PersonalAppointment) overlap);
                 }
             }
         }
 
         // Create new appointment
-        Appointment appointment = new Appointment();
+        PersonalAppointment appointment = new PersonalAppointment();
         appointment.setName(request.getName());
         appointment.setLocation(request.getLocation());
         appointment.setTimeSlot(requestedSlot);
@@ -296,50 +259,31 @@ public class AppointmentService implements AppointmentUseCase {
 
         // Backend validation: Check for conflicts when not forcing replace
         if (!request.isForceReplace()) {
-            // Check for overlapping normal appointments
-            List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
-                .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
-                .toList();
+            List<com.schedule.app.infrastructure.persistence.entity.Appointment> overlappingAppointments =
+                baseRepository.findOverlappingAppointmentsForUser(user.getId(), request.getStartTime(), request.getEndTime());
 
             if (!overlappingAppointments.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Time conflict with existing appointment. Please choose another time or use forceReplace.");
             }
-
-            // Check for overlapping group meetings
-            List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
-                .filter(gm -> gm.getParticipants().stream()
-                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
-                .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
-                .toList();
-
-            if (!overlappingGroupMeetings.isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Time conflict with existing group meeting. Please choose another time or use forceReplace.");
-            }
         }
 
         // Handle forceReplace: delete overlapping appointments and remove from group meetings
         if (request.isForceReplace()) {
-            // Delete overlapping normal appointments
-            List<Appointment> overlappingAppointments = appointmentRepository.findByOwnerId(user.getId()).stream()
-                .filter(a -> a.getTimeSlot().overlaps(requestedSlot))
-                .toList();
-            appointmentRepository.deleteAll(overlappingAppointments);
+            List<com.schedule.app.infrastructure.persistence.entity.Appointment> overlappingAppointments =
+                baseRepository.findOverlappingAppointmentsForUser(user.getId(), request.getStartTime(), request.getEndTime());
 
-            // Remove user from overlapping group meetings
-            List<GroupMeeting> overlappingGroupMeetings = groupMeetingRepository.findAll().stream()
-                .filter(gm -> gm.getParticipants().stream()
-                    .anyMatch(p -> p.getUser().getId().equals(user.getId())))
-                .filter(gm -> gm.getTimeSlot().overlaps(requestedSlot))
-                .toList();
-
-            for (GroupMeeting gm : overlappingGroupMeetings) {
-                gm.getParticipants().removeIf(p -> p.getUser().getId().equals(user.getId()));
-                if (gm.getParticipants().isEmpty()) {
-                    groupMeetingRepository.delete(gm);
-                } else {
-                    groupMeetingRepository.save(gm);
+            for (com.schedule.app.infrastructure.persistence.entity.Appointment overlap : overlappingAppointments) {
+                if (overlap instanceof GroupMeeting) {
+                    GroupMeeting gm = (GroupMeeting) overlap;
+                    gm.getParticipants().removeIf(p -> p.getUser().getId().equals(user.getId()));
+                    if (gm.getParticipants().isEmpty()) {
+                        groupMeetingRepository.delete(gm);
+                    } else {
+                        groupMeetingRepository.save(gm);
+                    }
+                } else if (overlap instanceof PersonalAppointment) {
+                    appointmentRepository.delete((PersonalAppointment) overlap);
                 }
             }
         }
@@ -381,7 +325,7 @@ public class AppointmentService implements AppointmentUseCase {
         // Try to find as normal appointment
         var appointment = appointmentRepository.findById(id);
         if (appointment.isPresent()) {
-            Appointment appt = appointment.get();
+            PersonalAppointment appt = appointment.get();
             if (!appt.getOwner().getId().equals(user.getId())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You don't have access to this appointment");
             }
@@ -426,7 +370,7 @@ public class AppointmentService implements AppointmentUseCase {
         }
     }
 
-    private AppointmentResponse mapToResponse(Appointment param) {
+    private AppointmentResponse mapToResponse(PersonalAppointment param) {
         List<Reminder> reminders = reminderRepository.findByAppointmentId(param.getId());
         Integer reminderMinutes = reminders.isEmpty() ? null : reminders.get(0).getMinutesBefore();
 

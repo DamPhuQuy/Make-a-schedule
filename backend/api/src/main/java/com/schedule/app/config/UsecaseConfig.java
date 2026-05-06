@@ -39,8 +39,9 @@ public class UsecaseConfig {
             GroupMeetingRepository groupMeetingRepository,
             CreateReminderUseCase createReminderUseCase,
             ReminderRepository reminderRepository,
-            UserRepository userRepository) {
-        return new AppointmentService(appointmentRepository, groupMeetingRepository, createReminderUseCase, reminderRepository, userRepository);
+            UserRepository userRepository,
+            com.schedule.app.domain.repository.BaseRepository baseRepository) {
+        return new AppointmentService(appointmentRepository, groupMeetingRepository, createReminderUseCase, reminderRepository, userRepository, baseRepository);
     }
 
     @Bean

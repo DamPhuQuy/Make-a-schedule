@@ -4,21 +4,21 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import com.schedule.app.infrastructure.persistence.entity.Appointment;
+import com.schedule.app.infrastructure.persistence.entity.PersonalAppointment;
 
 public interface AppointmentRepository {
 
-    List<Appointment> findOverlappingAppointments(Long ownerId, LocalDateTime startTime, LocalDateTime endTime);
+    List<PersonalAppointment> findOverlappingAppointments(Long ownerId, LocalDateTime startTime, LocalDateTime endTime);
 
-    List<Appointment> findByOwnerId(Long ownerId);
+    List<PersonalAppointment> findByOwnerId(Long ownerId);
 
-    List<Appointment> findByName(String name);
+    List<PersonalAppointment> findByName(String name);
 
-    Optional<Appointment> findById(Long id);
+    Optional<PersonalAppointment> findById(Long id);
 
-    Appointment save(Appointment appointment);
+    PersonalAppointment save(PersonalAppointment appointment);
 
-    void delete(Appointment appointment);
+    void delete(PersonalAppointment appointment);
 
-    void deleteAll(List<Appointment> appointments);
+    void deleteAll(List<PersonalAppointment> appointments);
 }

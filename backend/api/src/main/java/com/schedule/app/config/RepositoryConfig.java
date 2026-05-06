@@ -13,7 +13,7 @@ import com.schedule.app.domain.repository.GroupMeetingRepository;
 import com.schedule.app.domain.repository.RefreshTokenRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
 import com.schedule.app.domain.repository.UserRepository;
-import com.schedule.app.infrastructure.persistence.AppointmentJpaRepository;
+import com.schedule.app.infrastructure.persistence.PersonalAppointmentJpaRepository;
 import com.schedule.app.infrastructure.persistence.GroupMeetingJpaRepository;
 import com.schedule.app.infrastructure.persistence.RefreshTokenJpaRepository;
 import com.schedule.app.infrastructure.persistence.ReminderJpaRepository;
@@ -42,7 +42,7 @@ public class RepositoryConfig {
     }
 
     @Bean
-    public AppointmentRepository appointmentRepository(AppointmentJpaRepository appointmentJpaRepository) {
+    public AppointmentRepository appointmentRepository(PersonalAppointmentJpaRepository appointmentJpaRepository) {
         return new AppointmentRepositoryAdapter(appointmentJpaRepository);
     }
 }

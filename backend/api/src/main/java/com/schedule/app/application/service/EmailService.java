@@ -4,7 +4,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-import com.schedule.app.infrastructure.persistence.entity.Appointment;
+import com.schedule.app.infrastructure.persistence.entity.PersonalAppointment;
 
 @Service
 public class EmailService {
@@ -15,7 +15,7 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    public void sendReminderEmail(String toEmail, Appointment appointment) {
+    public void sendReminderEmail(String toEmail, PersonalAppointment appointment) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
         message.setSubject("Reminder: " + appointment.getName());
@@ -23,7 +23,7 @@ public class EmailService {
                 "\nLocation: " + appointment.getLocation() +
                 "\nStart Time: " + appointment.getTimeSlot().getStartTime() +
                 "\n\nBest regards,\nMake-a-schedule App");
-        
+
         mailSender.send(message);
     }
 }

@@ -5,49 +5,49 @@ import java.util.List;
 import java.util.Optional;
 
 import com.schedule.app.domain.repository.AppointmentRepository;
-import com.schedule.app.infrastructure.persistence.AppointmentJpaRepository;
-import com.schedule.app.infrastructure.persistence.entity.Appointment;
+import com.schedule.app.infrastructure.persistence.PersonalAppointmentJpaRepository;
+import com.schedule.app.infrastructure.persistence.entity.PersonalAppointment;
 
 public class AppointmentRepositoryAdapter implements AppointmentRepository {
 
-    private final AppointmentJpaRepository appointmentJpaRepository;
+    private final PersonalAppointmentJpaRepository appointmentJpaRepository;
 
-    public AppointmentRepositoryAdapter(AppointmentJpaRepository appointmentJpaRepository) {
+    public AppointmentRepositoryAdapter(PersonalAppointmentJpaRepository appointmentJpaRepository) {
         this.appointmentJpaRepository = appointmentJpaRepository;
     }
 
     @Override
-    public Appointment save(Appointment appointment) {
+    public PersonalAppointment save(PersonalAppointment appointment) {
         return appointmentJpaRepository.save(appointment);
     }
 
     @Override
-    public List<Appointment> findOverlappingAppointments(Long ownerId, LocalDateTime startTime, LocalDateTime endTime) {
+    public List<PersonalAppointment> findOverlappingAppointments(Long ownerId, LocalDateTime startTime, LocalDateTime endTime) {
         return appointmentJpaRepository.findOverlappingAppointments(ownerId, startTime, endTime);
     }
 
     @Override
-    public List<Appointment> findByOwnerId(Long ownerId) {
+    public List<PersonalAppointment> findByOwnerId(Long ownerId) {
         return appointmentJpaRepository.findByOwnerId(ownerId);
     }
 
     @Override
-    public List<Appointment> findByName(String name) {
+    public List<PersonalAppointment> findByName(String name) {
         return appointmentJpaRepository.findByName(name);
     }
 
     @Override
-    public Optional<Appointment> findById(Long id) {
+    public Optional<PersonalAppointment> findById(Long id) {
         return appointmentJpaRepository.findById(id);
     }
 
     @Override
-    public void delete(Appointment appointment) {
+    public void delete(PersonalAppointment appointment) {
         appointmentJpaRepository.delete(appointment);
     }
 
     @Override
-    public void deleteAll(List<Appointment> appointments) {
+    public void deleteAll(List<PersonalAppointment> appointments) {
         appointmentJpaRepository.deleteAll(appointments);
     }
 
