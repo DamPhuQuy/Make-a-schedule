@@ -1,133 +1,246 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
-export default function AppointmentModal({ slot, onClose, onSave }: any) {
-  const [appointmentType, setAppointmentType] = useState("normal");
+export type AppointmentType = "normal" | "group";
+
+export type AppointmentSlot = {
+  start: Date;
+  end: Date;
+};
+
+export type AppointmentFormData = {
+  appointmentType: AppointmentType;
+  name: string;
+  location: string;
+  participantUsernames: string | null;
+  startTime: string;
+  endTime: string;
+  reminderMinutes: number | null;
+};
+
+type AppointmentModalProps = Readonly<{
+  slot?: AppointmentSlot | null;
+  onClose: () => void;
+  onSave: (data: AppointmentFormData) => void;
+}>;
+
+const toLocalInputValue = (date: Date) => {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+
+const getInitialTime = (
+  slot: AppointmentSlot | null | undefined,
+  key: "start" | "end",
+) => (slot ? toLocalInputValue(slot[key]) : "");
+
+const REMINDER_OPTIONS = [
+  { value: "0", label: "None" },
+  { value: "15", label: "15 minutes before" },
+  { value: "30", label: "30 minutes before" },
+  { value: "60", label: "1 hour before" },
+];
+
+export default function AppointmentModal({
+  slot,
+  onClose,
+  onSave,
+}: AppointmentModalProps) {
+  const [appointmentType, setAppointmentType] =
+    useState<AppointmentType>("normal");
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [participantUsernames, setParticipantUsernames] = useState("");
-  // Converting dates to local datetime-local format string
-  const formatForInput = (d: Date) => {
-    // offset to local timezone securely
-    const offset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - offset).toISOString().slice(0, 16);
-  };
-
-  const [startTime, setStartTime] = useState(slot ? formatForInput(slot.start) : "");
-  const [endTime, setEndTime] = useState(slot ? formatForInput(slot.end) : "");
+  const [startTime, setStartTime] = useState(() =>
+    getInitialTime(slot, "start"),
+  );
+  const [endTime, setEndTime] = useState(() => getInitialTime(slot, "end"));
   const [reminder, setReminder] = useState("0");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
+  const handleSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setError("Name cannot be empty.");
       return;
     }
+
     const start = new Date(startTime);
     const end = new Date(endTime);
     if (end <= start) {
-      setError("End time must be securely after start time. Duration must be positive.");
+      setError(
+        "End time must be securely after start time. Duration must be positive.",
+      );
       return;
     }
 
+    const isGroupMeeting = appointmentType === "group";
+
     onSave({
       appointmentType,
-      name,
+      name: trimmedName,
       location,
-      participantUsernames: appointmentType === "group" ? participantUsernames : null,
+      participantUsernames: isGroupMeeting ? participantUsernames : null,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
-      reminderMinutes: reminder !== "0" ? parseInt(reminder) : null
+      reminderMinutes: reminder === "0" ? null : Number(reminder),
     });
   };
+
+  const isGroupMeeting = appointmentType === "group";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-xl w-96 relative">
         <h2 className="text-2xl font-bold mb-4">Add Appointment</h2>
-        {error && <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">{error}</div>}
-        
+        {error && (
+          <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Appointment Type</label>
+            <label
+              htmlFor="appointment-type"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Appointment Type
+            </label>
             <select
+              id="appointment-type"
               className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none transition"
               value={appointmentType}
-              onChange={e => setAppointmentType(e.target.value)}
+              onChange={(event) =>
+                setAppointmentType(event.target.value as AppointmentType)
+              }
             >
               <option value="normal">Normal Appointment</option>
               <option value="group">Group Meeting</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label
+              htmlFor="appointment-name"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Name
+            </label>
             <input
+              id="appointment-name"
               type="text"
               className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none transition"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               placeholder="e.g. Doctor Appointment"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+            <label
+              htmlFor="appointment-location"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Location
+            </label>
             <input
+              id="appointment-location"
               type="text"
               className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none transition"
               value={location}
-              onChange={e => setLocation(e.target.value)}
+              onChange={(event) => setLocation(event.target.value)}
               placeholder="e.g. Office, Online"
             />
           </div>
-          {appointmentType === "group" && (
+          {isGroupMeeting && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Participant Usernames</label>
+              <label
+                htmlFor="appointment-participants"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Participant Usernames
+              </label>
               <input
+                id="appointment-participants"
                 type="text"
                 className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none transition"
                 value={participantUsernames}
-                onChange={e => setParticipantUsernames(e.target.value)}
+                onChange={(event) =>
+                  setParticipantUsernames(event.target.value)
+                }
                 placeholder="e.g. user1, user2, user3"
               />
-              <p className="text-xs text-gray-500 mt-1">Separate multiple usernames with commas</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Separate multiple usernames with commas
+              </p>
             </div>
           )}
           <div className="flex space-x-2">
             <div className="w-1/2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-              <input 
-                type="datetime-local" 
+              <label
+                htmlFor="appointment-start"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Start Time
+              </label>
+              <input
+                id="appointment-start"
+                type="datetime-local"
                 className="w-full border border-gray-300 rounded p-2"
                 value={startTime}
-                onChange={e => setStartTime(e.target.value)}
+                onChange={(event) => setStartTime(event.target.value)}
               />
             </div>
             <div className="w-1/2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-              <input 
-                type="datetime-local" 
+              <label
+                htmlFor="appointment-end"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                End Time
+              </label>
+              <input
+                id="appointment-end"
+                type="datetime-local"
                 className="w-full border border-gray-300 rounded p-2"
                 value={endTime}
-                onChange={e => setEndTime(e.target.value)}
+                onChange={(event) => setEndTime(event.target.value)}
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reminder</label>
-            <select 
+            <label
+              htmlFor="appointment-reminder"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Reminder
+            </label>
+            <select
+              id="appointment-reminder"
               className="w-full border border-gray-300 rounded p-2"
               value={reminder}
-              onChange={e => setReminder(e.target.value)}
+              onChange={(event) => setReminder(event.target.value)}
             >
-              <option value="0">None</option>
-              <option value="15">15 minutes before</option>
-              <option value="30">30 minutes before</option>
-              <option value="60">1 hour before</option>
+              {REMINDER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="flex justify-end space-x-2 pt-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow transition">Save Appointment</button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow transition"
+            >
+              Save Appointment
+            </button>
           </div>
         </form>
       </div>

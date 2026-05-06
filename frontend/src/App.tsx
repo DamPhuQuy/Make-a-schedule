@@ -1,28 +1,28 @@
 import { useState } from "react";
-import CalendarView from "./CalendarView";
 import AuthView from "./AuthView";
+import CalendarView from "./CalendarView";
+
+const TOKEN_STORAGE_KEY = "jwt";
 
 function App() {
-  const [token, setToken] = useState<string | null>(localStorage.getItem("jwt"));
+  const [token, setToken] = useState<string | null>(() =>
+    localStorage.getItem(TOKEN_STORAGE_KEY),
+  );
 
   const handleLogin = (newToken: string) => {
-    localStorage.setItem("jwt", newToken);
+    localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
     setToken(newToken);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("jwt");
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken(null);
   };
 
-  if (!token) {
-    return <AuthView onLogin={handleLogin} />;
-  }
-
-  return (
-    <div>
-      <CalendarView onLogout={handleLogout} />
-    </div>
+  return token ? (
+    <CalendarView onLogout={handleLogout} />
+  ) : (
+    <AuthView onLogin={handleLogin} />
   );
 }
 

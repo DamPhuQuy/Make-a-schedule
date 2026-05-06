@@ -1,59 +1,55 @@
 import React, { useState } from "react";
 
-class loginRequest {
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+
+type LoginRequest = {
   email: string;
   password: string;
+};
 
-  constructor(email: string, password: string) {
-    this.email = email;
-    this.password = password;
-  }
-}
-
-class registerRequest {
+type RegisterRequest = {
   email: string;
   password: string;
   confirmPassword: string;
+};
 
-  constructor(email: string, password: string, confirmPassword: string) {
-    this.email = email;
-    this.password = password;
-    this.confirmPassword = confirmPassword;
-  }
-}
+type StatusType = "idle" | "error" | "success";
 
-export default function AuthView({
-  onLogin,
-}: {
+type AuthViewProps = Readonly<{
   onLogin: (token: string) => void;
-}) {
-  const apiBaseUrl =
-    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+}>;
+
+export default function AuthView({ onLogin }: AuthViewProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [status, setStatus] = useState<StatusType>("idle");
+  const [statusMessage, setStatusMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password || (!isLogin && password !== confirmPassword)) {
-      setError("Please fill in all fields correctly.");
+  const isRegister = !isLogin;
+
+  const submitAuth = async () => {
+    if (!email || !password || (isRegister && password !== confirmPassword)) {
+      setStatus("error");
+      setStatusMessage("Please fill in all fields correctly.");
       return;
     }
 
     setLoading(true);
-    setError("");
+    setStatus("idle");
+    setStatusMessage("");
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-      const body = isLogin
-        ? new loginRequest(email, password)
-        : new registerRequest(email, password, confirmPassword);
+      const body: LoginRequest | RegisterRequest = isLogin
+        ? { email, password }
+        : { email, password, confirmPassword };
 
-      const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -73,16 +69,36 @@ export default function AuthView({
       } else {
         // Automatically swap to login after registering
         setIsLogin(true);
-        setError("Registration successful! Please sign in.");
+        setStatus("success");
+        setStatusMessage("Registration successful! Please sign in.");
         setPassword("");
         setConfirmPassword("");
       }
     } catch (err: any) {
-      setError(err.message);
+      setStatus("error");
+      setStatusMessage(err.message ?? "Authentication failed");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSubmit = (event: React.SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void submitAuth();
+  };
+
+  const handleToggleMode = () => {
+    setIsLogin((prev) => !prev);
+    setStatus("idle");
+    setStatusMessage("");
+  };
+
+  let submitLabel = "Register";
+  if (loading) {
+    submitLabel = "Processing...";
+  } else if (isLogin) {
+    submitLabel = "Sign in";
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -94,21 +110,25 @@ export default function AuthView({
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow rounded-lg sm:px-10">
-          {error && (
+          {statusMessage && (
             <div
-              className={`mb-4 p-2 text-sm rounded ${error.includes("successful") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+              className={`mb-4 p-2 text-sm rounded ${status === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
             >
-              {error}
+              {statusMessage}
             </div>
           )}
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="auth-email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email
               </label>
               <div className="mt-1">
                 <input
+                  id="auth-email"
                   type="email"
                   required
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -119,11 +139,15 @@ export default function AuthView({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="auth-password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <div className="mt-1">
                 <input
+                  id="auth-password"
                   type={showPassword ? "text" : "password"}
                   required
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -133,13 +157,17 @@ export default function AuthView({
               </div>
             </div>
 
-            {!isLogin && (
+            {isRegister && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="auth-confirm-password"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Confirm Password
                 </label>
                 <div className="mt-1">
                   <input
+                    id="auth-confirm-password"
                     type={showPassword ? "text" : "password"}
                     required
                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -150,7 +178,6 @@ export default function AuthView({
               </div>
             )}
 
-            {/* show up password */}
             <div>
               <div className="flex items-center">
                 <input
@@ -174,7 +201,7 @@ export default function AuthView({
                 disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
               >
-                {loading ? "Processing..." : isLogin ? "Sign in" : "Register"}
+                {submitLabel}
               </button>
             </div>
           </form>
@@ -187,10 +214,7 @@ export default function AuthView({
                 </span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    setError("");
-                  }}
+                  onClick={handleToggleMode}
                   className="font-medium text-blue-600 hover:text-blue-500"
                 >
                   {isLogin ? "Create an account" : "Sign in instead"}

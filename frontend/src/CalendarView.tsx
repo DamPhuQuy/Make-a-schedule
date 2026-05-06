@@ -1,278 +1,347 @@
+import type {
+  DateSelectArg,
+  EventClickArg,
+  EventInput,
+} from "@fullcalendar/core";
 import viLocale from "@fullcalendar/core/locales/vi";
 import interactionPlugin from "@fullcalendar/interaction";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { AppointmentFormData, AppointmentSlot } from "./AppointmentModal";
 import AppointmentModal from "./AppointmentModal";
+import type { ConflictDetails, ConflictType } from "./ConflictWarning";
 import ConflictWarning from "./ConflictWarning";
 
-export default function CalendarView({ onLogout }: { onLogout: () => void }) {
-  const apiBaseUrl =
-    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
-  const [events, setEvents] = useState<any[]>([]);
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+
+const CALENDAR_EVENT_STYLES = `
+  .fc-event {
+    cursor: pointer;
+  }
+  .fc-event:hover {
+    opacity: 0.8;
+  }
+`;
+
+type ApiAppointment = {
+  id: number;
+  name: string;
+  location: string;
+  appointmentType: string;
+  isGroupMeeting: boolean;
+  startTime: string;
+  endTime: string;
+};
+
+type AppointmentDetails = {
+  id: number;
+  name: string;
+  location?: string | null;
+  appointmentType: string;
+  startTime: string;
+  endTime: string;
+  participants?: string[];
+  reminderMinutes?: number | null;
+};
+
+type ValidationConflictType = "TIME_OVERLAP" | "GROUP_MEETING_MATCH";
+
+type ValidationResult = {
+  conflictType?: ValidationConflictType;
+  message?: string;
+  details?: ConflictDetails;
+};
+
+type Culture = "en-US" | "vi";
+
+type CalendarViewProps = Readonly<{
+  onLogout: () => void;
+}>;
+
+const buildAuthHeaders = (headers?: HeadersInit) => {
+  const token = localStorage.getItem("jwt");
+  const mergedHeaders = new Headers(headers);
+  mergedHeaders.set("Authorization", `Bearer ${token}`);
+  return mergedHeaders;
+};
+
+const fetchWithAuth = (url: string, init: RequestInit = {}) =>
+  fetch(url, {
+    ...init,
+    headers: buildAuthHeaders(init.headers),
+  });
+
+const toCalendarEvent = (appt: ApiAppointment): EventInput => ({
+  id: String(appt.id),
+  start: new Date(appt.startTime),
+  end: new Date(appt.endTime),
+  title: appt.name + (appt.isGroupMeeting ? " (Group)" : ""),
+  extendedProps: {
+    id: appt.id,
+    name: appt.name,
+    location: appt.location,
+    appointmentType: appt.appointmentType,
+    isGroupMeeting: appt.isGroupMeeting,
+  },
+});
+
+export default function CalendarView({ onLogout }: CalendarViewProps) {
+  const [events, setEvents] = useState<EventInput[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
-  const [conflictType, setConflictType] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<AppointmentSlot | null>(
+    null,
+  );
+  const [conflictType, setConflictType] = useState<ConflictType | null>(null);
   const [conflictMessage, setConflictMessage] = useState("");
-  const [conflictDetails, setConflictDetails] = useState<any>(null);
-  const [pendingAppointment, setPendingAppointment] = useState<any>(null);
-  const [culture, setCulture] = useState("en-US");
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [conflictDetails, setConflictDetails] =
+    useState<ConflictDetails | null>(null);
+  const [pendingAppointment, setPendingAppointment] =
+    useState<AppointmentFormData | null>(null);
+  const [culture, setCulture] = useState<Culture>("en-US");
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<AppointmentDetails | null>(null);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
+  const handleUnauthorized = useCallback(
+    (response: Response) => {
+      if (response.status !== 401) {
+        return false;
+      }
+      onLogout();
+      return true;
+    },
+    [onLogout],
+  );
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
-      const token = localStorage.getItem("jwt");
-      const response = await fetch(`${apiBaseUrl}/api/appointments`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.status === 401) {
-        onLogout();
+      const response = await fetchWithAuth(`${API_BASE_URL}/api/appointments`);
+      if (handleUnauthorized(response)) {
         return;
       }
-      const data = await response.json();
-      const formattedData = data.map((appt: any) => ({
-        id: appt.id,
-        start: new Date(appt.startTime),
-        end: new Date(appt.endTime),
-        title: appt.name + (appt.isGroupMeeting ? " (Group)" : ""),
-        extendedProps: {
-          id: appt.id,
-          name: appt.name,
-          location: appt.location,
-          appointmentType: appt.appointmentType,
-          isGroupMeeting: appt.isGroupMeeting,
-        },
-      }));
-      setEvents(formattedData);
+      const data = (await response.json()) as ApiAppointment[];
+      setEvents(data.map(toCalendarEvent));
     } catch (error) {
       console.error("Failed to fetch appointments", error);
     }
-  };
+  }, [handleUnauthorized]);
 
-  const handleSelectSlot = (selectInfo: any) => {
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void fetchAppointments();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [fetchAppointments]);
+
+  const handleSelectSlot = (selectInfo: DateSelectArg) => {
     setSelectedSlot({
       start: selectInfo.start,
       end: selectInfo.end,
     });
-    // Unselect the internal selection immediately so it doesn't linger visually after modal interactions
     selectInfo.view.calendar.unselect();
     setIsModalOpen(true);
   };
 
-  const handleEventClick = (clickInfo: any) => {
-    const appointmentId = clickInfo.event.extendedProps.id;
+  const handleEventClick = (clickInfo: EventClickArg) => {
+    const appointmentId = Number(clickInfo.event.extendedProps.id);
+    if (Number.isNaN(appointmentId)) {
+      return;
+    }
     fetchAppointmentDetails(appointmentId);
   };
 
   const fetchAppointmentDetails = async (id: number) => {
     try {
-      const token = localStorage.getItem("jwt");
-      const response = await fetch(`${apiBaseUrl}/api/appointments/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.status === 401) {
-        onLogout();
+      const response = await fetchWithAuth(
+        `${API_BASE_URL}/api/appointments/${id}`,
+      );
+      if (handleUnauthorized(response)) {
         return;
       }
       if (!response.ok) {
         alert("Failed to fetch appointment details");
         return;
       }
-      const data = await response.json();
+      const data = (await response.json()) as AppointmentDetails;
       setSelectedAppointment(data);
     } catch (error) {
       console.error("Failed to fetch appointment details", error);
     }
   };
 
+  const validateAppointment = async (appointmentData: AppointmentFormData) => {
+    const response = await fetchWithAuth(
+      `${API_BASE_URL}/api/appointments/validate`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: appointmentData.name,
+          startTime: appointmentData.startTime,
+          endTime: appointmentData.endTime,
+        }),
+      },
+    );
+
+    if (handleUnauthorized(response)) {
+      return null;
+    }
+
+    if (!response.ok) {
+      const msg = await response.json();
+      alert("Error: " + (msg.message || "Validation failed"));
+      return null;
+    }
+
+    return (await response.json()) as ValidationResult;
+  };
+
+  const queueConflict = (
+    type: ConflictType,
+    result: ValidationResult,
+    appointmentData: AppointmentFormData,
+  ) => {
+    setConflictType(type);
+    setConflictMessage(result.message ?? "");
+    setConflictDetails(result.details ?? null);
+    setPendingAppointment(appointmentData);
+  };
+
+  const clearConflict = () => {
+    setConflictType(null);
+    setConflictDetails(null);
+    setPendingAppointment(null);
+  };
+
+  const saveGroupMeeting = async (
+    appointmentData: AppointmentFormData,
+    forceReplace: boolean,
+    forceJoin: boolean,
+  ) => {
+    if (!forceReplace) {
+      const validationResult = await validateAppointment(appointmentData);
+      if (!validationResult) {
+        return false;
+      }
+
+      if (validationResult.conflictType === "GROUP_MEETING_MATCH") {
+        queueConflict("GROUP_MEETING", validationResult, appointmentData);
+        return false;
+      }
+    }
+
+    const endpoint = `${API_BASE_URL}/api/appointments/group`;
+    const requestBody: Record<string, unknown> = {
+      name: appointmentData.name,
+      location: appointmentData.location,
+      startTime: appointmentData.startTime,
+      endTime: appointmentData.endTime,
+      reminderMinutes: appointmentData.reminderMinutes,
+      forceReplace: forceReplace,
+      forceJoin: forceJoin,
+    };
+
+    if (appointmentData.participantUsernames) {
+      requestBody.participantUsernames = appointmentData.participantUsernames
+        .split(",")
+        .map((username) => username.trim())
+        .filter((username) => username.length > 0);
+    }
+
+    const response = await fetchWithAuth(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (handleUnauthorized(response)) {
+      return false;
+    }
+
+    if (!response.ok) {
+      const msg = await response.json();
+      alert("Error: " + (msg.message || "Invalid appointment"));
+      return false;
+    }
+
+    return true;
+  };
+
+  const saveNormalAppointment = async (
+    appointmentData: AppointmentFormData,
+    forceReplace: boolean,
+    forceJoin: boolean,
+  ) => {
+    if (!forceReplace && !forceJoin) {
+      const validationResult = await validateAppointment(appointmentData);
+      if (!validationResult) {
+        return false;
+      }
+
+      if (validationResult.conflictType === "TIME_OVERLAP") {
+        queueConflict("OVERLAP", validationResult, appointmentData);
+        return false;
+      }
+
+      if (validationResult.conflictType === "GROUP_MEETING_MATCH") {
+        queueConflict("GROUP_MEETING", validationResult, appointmentData);
+        return false;
+      }
+    }
+
+    const requestBody: Record<string, unknown> = {
+      name: appointmentData.name,
+      location: appointmentData.location,
+      startTime: appointmentData.startTime,
+      endTime: appointmentData.endTime,
+      reminderMinutes: appointmentData.reminderMinutes,
+      forceReplace: forceReplace,
+      forceJoin: forceJoin,
+    };
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/appointments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (handleUnauthorized(response)) {
+      return false;
+    }
+
+    if (!response.ok) {
+      const msg = await response.json();
+      alert("Error: " + (msg.message || "Invalid appointment"));
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSaveAppointment = async (
-    appointmentData: any,
+    appointmentData: AppointmentFormData,
     forceReplace = false,
     forceJoin = false,
   ) => {
     try {
-      const token = localStorage.getItem("jwt");
+      const isGroupMeeting = appointmentData.appointmentType === "group";
+      const didSave = isGroupMeeting
+        ? await saveGroupMeeting(appointmentData, forceReplace, forceJoin)
+        : await saveNormalAppointment(appointmentData, forceReplace, forceJoin);
 
-      // For group meetings, validate first (only if not forcing)
-      if (appointmentData.appointmentType === "group") {
-        // Step 1 - Validate for time overlap with user's normal appointments
-        if (!forceReplace) {
-          const validateResponse = await fetch(
-            `${apiBaseUrl}/api/appointments/validate`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                name: appointmentData.name,
-                startTime: appointmentData.startTime,
-                endTime: appointmentData.endTime,
-              }),
-            },
-          );
-
-          if (validateResponse.status === 401) {
-            onLogout();
-            return;
-          }
-
-          if (!validateResponse.ok) {
-            const msg = await validateResponse.json();
-            alert("Error: " + (msg.message || "Validation failed"));
-            return;
-          }
-
-          const validationResult = await validateResponse.json();
-
-          // Handle time overlap conflict
-          if (validationResult.conflictType === "GROUP_MEETING_MATCH") {
-            setConflictType("GROUP_MEETING");
-            setConflictMessage(validationResult.message);
-            setConflictDetails(validationResult.details);
-            setPendingAppointment(appointmentData);
-            return;
-          }
-        }
-
-        // Step 2 - Create group meeting
-        const endpoint = `${apiBaseUrl}/api/appointments/group`;
-        const requestBody: any = {
-          name: appointmentData.name,
-          location: appointmentData.location,
-          startTime: appointmentData.startTime,
-          endTime: appointmentData.endTime,
-          reminderMinutes: appointmentData.reminderMinutes,
-          forceReplace: forceReplace,
-          forceJoin: forceJoin,
-        };
-
-        if (appointmentData.participantUsernames) {
-          requestBody.participantUsernames =
-            appointmentData.participantUsernames
-              .split(",")
-              .map((u: string) => u.trim())
-              .filter((u: string) => u.length > 0);
-        }
-
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (response.status === 401) {
-          onLogout();
-          return;
-        }
-
-        if (!response.ok) {
-          const msg = await response.json();
-          alert("Error: " + (msg.message || "Invalid appointment"));
-          return;
-        }
-
-        setIsModalOpen(false);
-        setConflictType(null);
-        setPendingAppointment(null);
-        fetchAppointments();
-        return;
-      }
-
-      // For normal appointments: Step 1 - Validate (only if not forcing replace or join)
-      if (!forceReplace && !forceJoin) {
-        const validateResponse = await fetch(
-          `${apiBaseUrl}/api/appointments/validate`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              name: appointmentData.name,
-              startTime: appointmentData.startTime,
-              endTime: appointmentData.endTime,
-            }),
-          },
-        );
-
-        if (validateResponse.status === 401) {
-          onLogout();
-          return;
-        }
-
-        if (!validateResponse.ok) {
-          const msg = await validateResponse.json();
-          alert("Error: " + (msg.message || "Validation failed"));
-          return;
-        }
-
-        const validationResult = await validateResponse.json();
-
-        // Handle conflicts
-        if (validationResult.conflictType === "TIME_OVERLAP") {
-          setConflictType("OVERLAP");
-          setConflictMessage(validationResult.message);
-          setConflictDetails(validationResult.details);
-          setPendingAppointment(appointmentData);
-          return;
-        }
-
-        if (validationResult.conflictType === "GROUP_MEETING_MATCH") {
-          setConflictType("GROUP_MEETING");
-          setConflictMessage(validationResult.message);
-          setConflictDetails(validationResult.details);
-          setPendingAppointment(appointmentData);
-          return;
-        }
-      }
-
-      // Step 2 - Create appointment (with forceReplace/forceJoin flags)
-      const requestBody: any = {
-        name: appointmentData.name,
-        location: appointmentData.location,
-        startTime: appointmentData.startTime,
-        endTime: appointmentData.endTime,
-        reminderMinutes: appointmentData.reminderMinutes,
-        forceReplace: forceReplace,
-        forceJoin: forceJoin,
-      };
-
-      console.log("Creating appointment with:", requestBody); // Debug log
-
-      const response = await fetch(`${apiBaseUrl}/api/appointments`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (response.status === 401) {
-        onLogout();
-        return;
-      }
-
-      if (!response.ok) {
-        const msg = await response.json();
-        alert("Error: " + (msg.message || "Invalid appointment"));
+      if (!didSave) {
         return;
       }
 
       setIsModalOpen(false);
-      setConflictType(null);
-      setConflictDetails(null);
-      setPendingAppointment(null);
+      clearConflict();
       fetchAppointments();
     } catch (error) {
       console.error("Failed to save appointment", error);
@@ -286,17 +355,14 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
       return;
     }
     try {
-      const token = localStorage.getItem("jwt");
-
-      const response = await fetch(`${apiBaseUrl}/api/appointments/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetchWithAuth(
+        `${API_BASE_URL}/api/appointments/${id}`,
+        {
+          method: "DELETE",
         },
-      });
+      );
 
-      if (response.status === 401) {
-        onLogout();
+      if (handleUnauthorized(response)) {
         return;
       }
 
@@ -342,15 +408,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         className="bg-white rounded-xl shadow p-4"
         style={{ height: "80vh" }}
       >
-        {/* .fc-event: block appointment */}
-        <style>{`
-          .fc-event {
-            cursor: pointer;
-          }
-          .fc-event:hover {
-            opacity: 0.8;
-          }
-        `}</style>
+        <style>{CALENDAR_EVENT_STYLES}</style>
         <FullCalendar
           plugins={[timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
@@ -382,7 +440,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         <AppointmentModal
           slot={selectedSlot}
           onClose={() => setIsModalOpen(false)}
-          onSave={(data: any) => handleSaveAppointment(data)}
+          onSave={handleSaveAppointment}
         />
       )}
 
@@ -391,14 +449,15 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           type={conflictType}
           message={conflictMessage}
           details={conflictDetails}
-          onCancel={() => {
-            setConflictType(null);
-            setConflictDetails(null);
-          }}
+          onCancel={clearConflict}
           onReplace={() =>
+            pendingAppointment &&
             handleSaveAppointment(pendingAppointment, true, false)
           }
-          onJoin={() => handleSaveAppointment(pendingAppointment, false, true)}
+          onJoin={() =>
+            pendingAppointment &&
+            handleSaveAppointment(pendingAppointment, false, true)
+          }
         />
       )}
 
@@ -410,23 +469,21 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
             </h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-600">
-                  Tên:
-                </label>
+                <p className="block text-sm font-medium text-gray-600">Tên:</p>
                 <p className="text-gray-900">{selectedAppointment.name}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">
+                <p className="block text-sm font-medium text-gray-600">
                   Địa điểm:
-                </label>
+                </p>
                 <p className="text-gray-900">
                   {selectedAppointment.location || "N/A"}
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">
+                <p className="block text-sm font-medium text-gray-600">
                   Thời gian bắt đầu:
-                </label>
+                </p>
                 <p className="text-gray-900">
                   {new Date(selectedAppointment.startTime).toLocaleString(
                     "vi-VN",
@@ -434,9 +491,9 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">
+                <p className="block text-sm font-medium text-gray-600">
                   Thời gian kết thúc:
-                </label>
+                </p>
                 <p className="text-gray-900">
                   {new Date(selectedAppointment.endTime).toLocaleString(
                     "vi-VN",
@@ -444,9 +501,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">
-                  Loại:
-                </label>
+                <p className="block text-sm font-medium text-gray-600">Loại:</p>
                 <p className="text-gray-900">
                   {selectedAppointment.appointmentType === "GROUP_MEETING"
                     ? "Cuộc họp nhóm"
@@ -456,13 +511,13 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
               {selectedAppointment.appointmentType === "GROUP_MEETING" &&
                 selectedAppointment.participants && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-600">
+                    <p className="block text-sm font-medium text-gray-600">
                       Người tham gia:
-                    </label>
+                    </p>
                     <ul className="text-gray-900 list-disc list-inside">
                       {selectedAppointment.participants.map(
-                        (participant: string, index: number) => (
-                          <li key={index}>{participant}</li>
+                        (participant: string) => (
+                          <li key={participant}>{participant}</li>
                         ),
                       )}
                     </ul>
@@ -470,9 +525,9 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
                 )}
               {selectedAppointment.reminderMinutes !== null && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-600">
+                  <p className="block text-sm font-medium text-gray-600">
                     Nhắc nhở trước:
-                  </label>
+                  </p>
                   <p className="text-gray-900">
                     {selectedAppointment.reminderMinutes} phút
                   </p>
