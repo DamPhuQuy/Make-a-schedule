@@ -240,21 +240,35 @@ public class ModernCalendarUI extends JFrame {
         dateChooser.setPreferredSize(new Dimension(300, 200));
         formPanel.add(dateChooser, gbc);
 
-        // Start Hour
+        // Start Time
         gbc.gridx = 0; gbc.gridy = 3;
-        formPanel.add(createLabel("Start Hour:"), gbc);
+        formPanel.add(createLabel("Start Time:"), gbc);
         gbc.gridx = 1;
-        JSpinner startSpinner = new JSpinner(new SpinnerNumberModel(9, 0, 23, 1));
-        startSpinner.setFont(bodyFont);
-        formPanel.add(startSpinner, gbc);
+        JPanel startTimePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        startTimePanel.setBackground(cardBg);
+        JSpinner startHourSpinner = new JSpinner(new SpinnerNumberModel(9, 0, 23, 1));
+        JSpinner startMinuteSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 59, 1));
+        startHourSpinner.setFont(bodyFont);
+        startMinuteSpinner.setFont(bodyFont);
+        startTimePanel.add(startHourSpinner);
+        startTimePanel.add(new JLabel(":"));
+        startTimePanel.add(startMinuteSpinner);
+        formPanel.add(startTimePanel, gbc);
 
-        // End Hour
+        // End Time
         gbc.gridx = 0; gbc.gridy = 4;
-        formPanel.add(createLabel("End Hour:"), gbc);
+        formPanel.add(createLabel("End Time:"), gbc);
         gbc.gridx = 1;
-        JSpinner endSpinner = new JSpinner(new SpinnerNumberModel(10, 0, 23, 1));
-        endSpinner.setFont(bodyFont);
-        formPanel.add(endSpinner, gbc);
+        JPanel endTimePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        endTimePanel.setBackground(cardBg);
+        JSpinner endHourSpinner = new JSpinner(new SpinnerNumberModel(10, 0, 23, 1));
+        JSpinner endMinuteSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 59, 1));
+        endHourSpinner.setFont(bodyFont);
+        endMinuteSpinner.setFont(bodyFont);
+        endTimePanel.add(endHourSpinner);
+        endTimePanel.add(new JLabel(":"));
+        endTimePanel.add(endMinuteSpinner);
+        formPanel.add(endTimePanel, gbc);
 
         // Type
         gbc.gridx = 0; gbc.gridy = 5;
@@ -264,6 +278,30 @@ public class ModernCalendarUI extends JFrame {
         JComboBox<String> typeCombo = new JComboBox<>(types);
         typeCombo.setFont(bodyFont);
         formPanel.add(typeCombo, gbc);
+
+        // Reminder
+        gbc.gridx = 0; gbc.gridy = 6;
+        formPanel.add(createLabel("Reminder before:"), gbc);
+        gbc.gridx = 1;
+        JPanel reminderPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        reminderPanel.setBackground(cardBg);
+
+        JSpinner reminderDaysSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 365, 1));
+        JSpinner reminderHoursSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 23, 1));
+        JSpinner reminderMinutesSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 59, 1));
+
+        reminderDaysSpinner.setFont(bodyFont);
+        reminderHoursSpinner.setFont(bodyFont);
+        reminderMinutesSpinner.setFont(bodyFont);
+
+        reminderPanel.add(reminderDaysSpinner);
+        reminderPanel.add(new JLabel("ngày"));
+        reminderPanel.add(reminderHoursSpinner);
+        reminderPanel.add(new JLabel("giờ"));
+        reminderPanel.add(reminderMinutesSpinner);
+        reminderPanel.add(new JLabel("phút"));
+
+        formPanel.add(reminderPanel, gbc);
 
         panel.add(formPanel);
         panel.add(Box.createRigidArea(new Dimension(0, 20)));
@@ -276,8 +314,10 @@ public class ModernCalendarUI extends JFrame {
                 String name = nameField.getText().trim();
                 String location = locationField.getText().trim();
                 Date selectedDate = dateChooser.getDate();
-                int startHour = (Integer) startSpinner.getValue();
-                int endHour = (Integer) endSpinner.getValue();
+                int startHour = (Integer) startHourSpinner.getValue();
+                int startMinute = (Integer) startMinuteSpinner.getValue();
+                int endHour = (Integer) endHourSpinner.getValue();
+                int endMinute = (Integer) endMinuteSpinner.getValue();
                 String type = (String) typeCombo.getSelectedItem();
 
                 if (name.isEmpty() || location.isEmpty()) {
@@ -285,8 +325,11 @@ public class ModernCalendarUI extends JFrame {
                     return;
                 }
 
-                if (startHour >= endHour) {
-                    JOptionPane.showMessageDialog(this, "Start hour must be before end hour", "Error", JOptionPane.ERROR_MESSAGE);
+                // Compare start and end time
+                int startTimeInMinutes = startHour * 60 + startMinute;
+                int endTimeInMinutes = endHour * 60 + endMinute;
+                if (startTimeInMinutes >= endTimeInMinutes) {
+                    JOptionPane.showMessageDialog(this, "Start time must be before end time", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
@@ -295,16 +338,64 @@ public class ModernCalendarUI extends JFrame {
                     1L, name, location, meetingDate, startHour, endHour, type
                 );
 
-                appointmentApi.createAppointment(request);
+                AppointmentDTO createdAppointment = appointmentApi.createAppointment(request);
+
+                // Add custom reminder if specified
+                int reminderDays = (Integer) reminderDaysSpinner.getValue();
+                int reminderHours = (Integer) reminderHoursSpinner.getValue();
+                int reminderMinutes = (Integer) reminderMinutesSpinner.getValue();
+
+                // Calculate total minutes
+                int totalReminderMinutes = (reminderDays * 1440) + (reminderHours * 60) + reminderMinutes;
+
+                if (totalReminderMinutes > 0) {
+                    // Create a custom reminder title based on input
+                    String reminderTitle;
+                    if (reminderDays > 0 && reminderHours == 0 && reminderMinutes == 0) {
+                        reminderTitle = reminderDays + " ngày trước";
+                    } else if (reminderDays == 0 && reminderHours > 0 && reminderMinutes == 0) {
+                        reminderTitle = reminderHours + " giờ trước";
+                    } else if (reminderDays == 0 && reminderHours == 0 && reminderMinutes > 0) {
+                        reminderTitle = reminderMinutes + " phút trước";
+                    } else {
+                        // Combined format
+                        StringBuilder sb = new StringBuilder();
+                        if (reminderDays > 0) sb.append(reminderDays).append(" ngày ");
+                        if (reminderHours > 0) sb.append(reminderHours).append(" giờ ");
+                        if (reminderMinutes > 0) sb.append(reminderMinutes).append(" phút ");
+                        reminderTitle = sb.toString().trim() + "trước";
+                    }
+
+                    // Map to existing reminders
+                    Long reminderId = null;
+                    if (totalReminderMinutes == 15) reminderId = 1L;
+                    else if (totalReminderMinutes == 30) reminderId = 2L;
+                    else if (totalReminderMinutes == 60) reminderId = 3L;
+                    else if (totalReminderMinutes == 1440) reminderId = 4L;
+
+                    if (reminderId != null) {
+                        appointmentApi.addReminderToAppointment(createdAppointment.getId(), reminderId);
+                    } else {
+                        JOptionPane.showMessageDialog(this,
+                            "Custom reminder time noted: " + reminderTitle + "\nNote: Only 15, 30, 60, or 1440 minutes are supported in the system.",
+                            "Info", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                }
+
                 JOptionPane.showMessageDialog(this, "Appointment created successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
                 // Clear form
                 nameField.setText("");
                 locationField.setText("");
                 dateChooser.setDate(new Date());
-                startSpinner.setValue(9);
-                endSpinner.setValue(10);
+                startHourSpinner.setValue(9);
+                startMinuteSpinner.setValue(0);
+                endHourSpinner.setValue(10);
+                endMinuteSpinner.setValue(0);
                 typeCombo.setSelectedIndex(0);
+                reminderDaysSpinner.setValue(0);
+                reminderHoursSpinner.setValue(0);
+                reminderMinutesSpinner.setValue(0);
 
                 // Refresh appointments tab
                 loadAppointments();
