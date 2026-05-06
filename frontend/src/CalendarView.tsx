@@ -131,8 +131,8 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           const validationResult = await validateResponse.json();
 
           // Handle time overlap conflict
-          if (validationResult.conflictType === "TIME_OVERLAP") {
-            setConflictType("OVERLAP");
+          if (validationResult.conflictType === "GROUP_MEETING_MATCH") {
+            setConflictType("GROUP_MEETING");
             setConflictMessage(validationResult.message);
             setConflictDetails(validationResult.details);
             setPendingAppointment(appointmentData);
@@ -148,6 +148,8 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
           startTime: appointmentData.startTime,
           endTime: appointmentData.endTime,
           reminderMinutes: appointmentData.reminderMinutes,
+          forceReplace: forceReplace,
+          forceJoin: forceJoin,
         };
 
         if (appointmentData.participantUsernames) {
@@ -234,7 +236,7 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         }
       }
 
-      // Step 2 - Create appointment
+      // Step 2 - Create appointment (with forceReplace/forceJoin flags)
       const requestBody: any = {
         name: appointmentData.name,
         location: appointmentData.location,
@@ -244,6 +246,8 @@ export default function CalendarView({ onLogout }: { onLogout: () => void }) {
         forceReplace: forceReplace,
         forceJoin: forceJoin,
       };
+
+      console.log("Creating appointment with:", requestBody); // Debug log
 
       const response = await fetch(`${apiBaseUrl}/api/appointments`, {
         method: "POST",

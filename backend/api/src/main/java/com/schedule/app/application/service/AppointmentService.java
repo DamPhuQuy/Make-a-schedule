@@ -55,7 +55,7 @@ public class AppointmentService implements AppointmentUseCase {
     @Transactional(readOnly = true)
     public AppointmentConflictResponse validateAppointment(ValidateAppointmentRequest request, UserDetailsImpl currentUser) {
         User user = getUserOrThrow(currentUser.getId());
-        validateAppointmentRequest(request);
+        validateAppointmentBasicFields(request.getName(), request.getStartTime(), request.getEndTime());
 
         var groupMeetingMatch = findMatchingGroupMeeting(request);
         if (groupMeetingMatch.isPresent()) {
@@ -70,14 +70,14 @@ public class AppointmentService implements AppointmentUseCase {
         return buildNoConflictResponse();
     }
 
-    private void validateAppointmentRequest(ValidateAppointmentRequest request) {
-        if (request.getName() == null || request.getName().trim().isEmpty()) {
+    private void validateAppointmentBasicFields(String name, Instant startTime, Instant endTime) {
+        if (name == null || name.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment name cannot be empty");
         }
-        if (request.getStartTime() == null || request.getEndTime() == null) {
+        if (startTime == null || endTime == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start and end times are required");
         }
-        if (!request.getEndTime().isAfter(request.getStartTime())) {
+        if (!endTime.isAfter(startTime)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End time must be after start time");
         }
     }
@@ -140,11 +140,11 @@ public class AppointmentService implements AppointmentUseCase {
     public List<AppointmentResponse> getAllAppointments(UserDetailsImpl currentUser) {
         User user = getUserOrThrow(currentUser.getId());
 
-        List<AppointmentResponse> personalAppointments = getPersonalAppointments(user.getId());
-        List<AppointmentResponse> groupAppointments = getGroupMeetingsForUser(user.getId());
+        List<AppointmentResponse> allAppointments = new ArrayList<>();
+        allAppointments.addAll(getPersonalAppointments(user.getId()));
+        allAppointments.addAll(getGroupMeetingsForUser(user.getId()));
 
-        personalAppointments.addAll(groupAppointments);
-        return personalAppointments;
+        return allAppointments;
     }
 
     private List<AppointmentResponse> getPersonalAppointments(Long userId) {
@@ -201,7 +201,11 @@ public class AppointmentService implements AppointmentUseCase {
     @Transactional
     public AppointmentResponse createAppointment(CreateAppointmentRequest request, UserDetailsImpl currentUser) {
         User user = getUserOrThrow(currentUser.getId());
-        validateAppointment(request);
+        validateAppointmentBasicFields(request.getName(), request.getStartTime(), request.getEndTime());
+
+        // Debug logging
+        System.out.println("DEBUG - forceReplace: " + request.isForceReplace());
+        System.out.println("DEBUG - forceJoin: " + request.isForceJoin());
 
         if (request.isForceJoin()) {
             return handleForceJoin(request, user);
@@ -247,7 +251,7 @@ public class AppointmentService implements AppointmentUseCase {
 
     private void checkConflictsIfNeeded(CreateAppointmentRequest request, Long userId) {
         if (!request.isForceReplace()) {
-            List<com.schedule.app.infrastructure.persistence.entity.Appointment> overlapping =
+            List<Appointment> overlapping =
                 baseRepository.findOverlappingAppointmentsForUser(userId, request.getStartTime(), request.getEndTime());
 
             if (!overlapping.isEmpty()) {
@@ -259,10 +263,10 @@ public class AppointmentService implements AppointmentUseCase {
 
     private void handleForceReplaceIfNeeded(CreateAppointmentRequest request, Long userId) {
         if (request.isForceReplace()) {
-            List<com.schedule.app.infrastructure.persistence.entity.Appointment> overlapping =
+            List<Appointment> overlapping =
                 baseRepository.findOverlappingAppointmentsForUser(userId, request.getStartTime(), request.getEndTime());
 
-            for (com.schedule.app.infrastructure.persistence.entity.Appointment overlap : overlapping) {
+            for (Appointment overlap : overlapping) {
                 deleteOrRemoveUserFromAppointment(overlap, userId);
             }
         }
@@ -309,7 +313,7 @@ public class AppointmentService implements AppointmentUseCase {
     @Transactional
     public AppointmentResponse createGroupMeeting(CreateAppointmentRequest request, UserDetailsImpl currentUser) {
         User user = getUserOrThrow(currentUser.getId());
-        validateAppointment(request);
+        validateAppointmentBasicFields(request.getName(), request.getStartTime(), request.getEndTime());
 
         checkConflictsIfNeeded(request, user.getId());
         handleForceReplaceIfNeeded(request, user.getId());
@@ -391,18 +395,6 @@ public class AppointmentService implements AppointmentUseCase {
             groupMeetingRepository.delete(gm);
         } else {
             groupMeetingRepository.save(gm);
-        }
-    }
-
-    private void validateAppointment(CreateAppointmentRequest request) {
-        if (request.getName() == null || request.getName().trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment name cannot be empty");
-        }
-        if (request.getStartTime() == null || request.getEndTime() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start and end times are required");
-        }
-        if (!request.getEndTime().isAfter(request.getStartTime())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End time must be after start time (duration must be positive)");
         }
     }
 
