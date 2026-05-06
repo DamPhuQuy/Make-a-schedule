@@ -260,7 +260,7 @@ public class ModernCalendarUI extends JFrame {
         gbc.gridx = 0; gbc.gridy = 5;
         formPanel.add(createLabel("Type:"), gbc);
         gbc.gridx = 1;
-        String[] types = {"WORK", "PERSONAL", "MEETING", "OTHER"};
+        String[] types = {"NORMAL_APPOINTMENT", "GROUP_MEETING"};
         JComboBox<String> typeCombo = new JComboBox<>(types);
         typeCombo.setFont(bodyFont);
         formPanel.add(typeCombo, gbc);

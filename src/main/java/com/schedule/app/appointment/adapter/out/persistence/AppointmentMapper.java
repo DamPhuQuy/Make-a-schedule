@@ -1,7 +1,8 @@
 package com.schedule.app.appointment.adapter.out.persistence;
 
-import com.schedule.app.appointment.domain.model.Appointment;
 import org.springframework.stereotype.Component;
+
+import com.schedule.app.appointment.domain.model.Appointment;
 
 @Component
 public class AppointmentMapper {
