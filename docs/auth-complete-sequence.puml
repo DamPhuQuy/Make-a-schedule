@@ -1,0 +1,73 @@
+@startuml Login Flow
+
+title Login Flow
+
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor User
+participant "JwtAuthenticationFilter" as Filter
+participant "AuthController" as Controller
+participant "AuthenticationService" as Service
+participant "AuthenticationManager" as AuthManager
+participant "Data Access Layer" as DAL
+participant "JwtUtils" as JWT
+
+== Login Flow ==
+
+User -> Filter: POST /api/auth/login\n{email, password}
+activate Filter
+
+Filter -> Controller: Continue (skip filter for /api/auth/*)
+deactivate Filter
+activate Controller
+
+Controller -> Service: authenticate(request)
+activate Service
+
+Service -> AuthManager: authenticate(email, password)
+activate AuthManager
+
+AuthManager -> DAL: findUserByEmail(email)
+activate DAL
+DAL --> AuthManager: User
+deactivate DAL
+
+alt Invalid credentials
+    AuthManager --> Service: BadCredentialsException
+    Service --> Controller: Exception
+    Controller --> User: 401 Unauthorized
+    deactivate Service
+    deactivate Controller
+else Valid credentials
+    AuthManager --> Service: Authentication
+    deactivate AuthManager
+
+    Service -> JWT: generateToken(userDetails)
+    activate JWT
+    JWT --> Service: accessToken
+    deactivate JWT
+
+    Service -> JWT: generateRefreshToken(userDetails)
+    activate JWT
+    JWT --> Service: refreshToken
+    deactivate JWT
+
+    Service -> DAL: deleteOldRefreshTokens(user)
+    activate DAL
+    DAL --> Service: void
+    deactivate DAL
+
+    Service -> DAL: saveRefreshToken(refreshToken, user)
+    activate DAL
+    DAL --> Service: RefreshToken
+    deactivate DAL
+
+    Service --> Controller: AuthResponse\n{accessToken, refreshToken}
+    deactivate Service
+    Controller --> User: 200 OK + tokens
+    deactivate Controller
+end
+
+@enduml

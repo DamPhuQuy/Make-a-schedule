@@ -1,0 +1,81 @@
+@startuml Validate Appointment
+
+title Validate Appointment (Check Conflicts)
+
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor User
+participant "AppointmentController" as Controller
+participant "AppointmentService" as Service
+participant "Data Access Layer" as DAL
+
+User -> Controller: POST /api/appointments/validate\n{name, startTime, endTime}
+activate Controller
+
+Controller -> Service: validateAppointment(request, currentUser)
+activate Service
+
+Service -> DAL: findUser(userId)
+activate DAL
+DAL --> Service: User
+deactivate DAL
+
+Service -> Service: validateInput()
+
+alt [Invalid input]
+    Service --> Controller: ValidationException
+    Controller --> User: 400 Bad Request
+    deactivate Service
+    deactivate Controller
+else [Valid input]
+    Service -> DAL: findGroupMeetingByName(name)
+    activate DAL
+    DAL --> Service: List<GroupMeeting>
+    deactivate DAL
+
+    Service -> Service: filterExactMatch()
+
+    alt [Exact group meeting match found]
+        Service --> Controller: ValidationResponse(GROUP_MEETING_MATCH)
+        deactivate Service
+        Controller --> User: Success
+        deactivate Controller
+    else [No exact match]
+        Service -> DAL: findUserAppointments(userId)
+        activate DAL
+        DAL --> Service: List<Appointment>
+        deactivate DAL
+
+        Service -> Service: checkTimeOverlap()
+
+        alt [Time overlap with appointment]
+            Service --> Controller: ValidationResponse(TIME_OVERLAP)
+            deactivate Service
+            Controller --> User: Success
+            deactivate Controller
+        else [No appointment overlap]
+            Service -> DAL: findUserGroupMeetings(userId)
+            activate DAL
+            DAL --> Service: List<GroupMeeting>
+            deactivate DAL
+
+            Service -> Service: checkTimeOverlap()
+
+            alt [Time overlap with group meeting]
+                Service --> Controller: ValidationResponse(TIME_OVERLAP)
+                deactivate Service
+                Controller --> User: Success
+                deactivate Controller
+            else [No conflicts]
+                Service --> Controller: ValidationResponse(NONE)
+                deactivate Service
+                Controller --> User: Success
+                deactivate Controller
+            end
+        end
+    end
+end
+
+@enduml

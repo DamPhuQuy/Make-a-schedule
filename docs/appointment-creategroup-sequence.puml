@@ -1,0 +1,75 @@
+@startuml Create Group Meeting
+
+title Create Group Meeting with Participants
+
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor User
+participant "AppointmentController" as Controller
+participant "AppointmentService" as Service
+participant "Data Access Layer" as DAL
+
+User -> Controller: POST /api/appointments/group\n{name, startTime, endTime, participantUsernames}
+activate Controller
+
+Controller -> Service: createGroupMeeting(request, currentUser)
+activate Service
+
+Service -> DAL: findUser(userId)
+activate DAL
+DAL --> Service: User
+deactivate DAL
+
+Service -> Service: validateInput()
+
+alt [forceReplace = true]
+    Service -> DAL: findUserAppointments(userId)
+    activate DAL
+    DAL --> Service: List<Appointment>
+    deactivate DAL
+
+    Service -> DAL: deleteAppointments(overlapping)
+    activate DAL
+    DAL --> Service: void
+    deactivate DAL
+
+    Service -> DAL: findUserGroupMeetings(userId)
+    activate DAL
+    DAL --> Service: List<GroupMeeting>
+    deactivate DAL
+
+    loop [For each overlapping group]
+        Service -> DAL: removeParticipant(groupMeeting, user)
+        activate DAL
+        DAL --> Service: void
+        deactivate DAL
+    end
+end
+
+Service -> Service: createGroupMeeting(name, startTime, endTime)
+Service -> Service: addParticipant(creator)
+
+loop [For each email in participantUsernames]
+    Service -> DAL: findUserByEmail(email)
+    activate DAL
+    DAL --> Service: User
+    deactivate DAL
+
+    opt [User found and not creator]
+        Service -> Service: addParticipant(user)
+    end
+end
+
+Service -> DAL: saveGroupMeeting(groupMeeting)
+activate DAL
+DAL --> Service: GroupMeeting
+deactivate DAL
+
+Service --> Controller: AppointmentResponse
+deactivate Service
+Controller --> User: Success
+deactivate Controller
+
+@enduml

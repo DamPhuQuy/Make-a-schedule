@@ -1,0 +1,74 @@
+@startuml Create Appointment - Error Handling
+
+title Create Appointment (Error Scenarios)
+
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor User
+participant "AppointmentController" as Controller
+participant "AppointmentService" as Service
+participant "Data Access Layer" as DAL
+
+== Scenario 1: Group Meeting Not Found (forceJoin) ==
+
+User -> Controller: POST /api/appointments\n{forceJoin: true, name: "NonExistent"}
+activate Controller
+
+Controller -> Service: createAppointment(request, currentUser)
+activate Service
+
+Service -> DAL: findGroupMeetingByName(name)
+activate DAL
+DAL --> Service: null
+deactivate DAL
+
+Service --> Controller: NotFoundException
+deactivate Service
+Controller --> User: 404 Not Found
+deactivate Controller
+
+== Scenario 2: Time Conflict (Normal Creation) ==
+
+User -> Controller: POST /api/appointments\n{startTime, endTime}
+activate Controller
+
+Controller -> Service: createAppointment(request, currentUser)
+activate Service
+
+Service -> DAL: findUserAppointments(userId)
+activate DAL
+DAL --> Service: List<Appointment>
+deactivate DAL
+
+Service -> DAL: findUserGroupMeetings(userId)
+activate DAL
+DAL --> Service: List<GroupMeeting>
+deactivate DAL
+
+Service -> Service: checkTimeConflicts()
+note right: Conflict detected
+
+Service --> Controller: ConflictException
+deactivate Service
+Controller --> User: 409 Conflict
+deactivate Controller
+
+== Scenario 3: Invalid Input ==
+
+User -> Controller: POST /api/appointments\n{invalid data}
+activate Controller
+
+Controller -> Service: createAppointment(request, currentUser)
+activate Service
+
+Service -> Service: validateInput()
+note right: Validation failed
+
+Service --> Controller: ValidationException
+deactivate Service
+Controller --> User: 400 Bad Request
+deactivate Controller
+
+@enduml
