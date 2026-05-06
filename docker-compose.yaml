@@ -1,53 +1,51 @@
 services:
-  postgres:
+  db:
     image: postgres:17-alpine
-    container_name: schedule-postgres
-    env_file:
-      - .env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
       timeout: 5s
-      retries: 10
-    restart: unless-stopped
+      retries: 5
     networks:
-      - schedule-network
+      - app-network
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: schedule-app
+  backend:
+    build: ./backend/api
+    ports:
+      - "8080:8080"
     env_file:
       - .env
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SERVER_PORT: ${SERVER_PORT:-8080}
-    ports:
-      - "${SERVER_PORT:-8080}:8080"
-
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
-
-    restart: unless-stopped
     networks:
-      - schedule-network
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
 
 networks:
-  schedule-network:
+  app-network:
     driver: bridge

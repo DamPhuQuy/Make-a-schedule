@@ -1,0 +1,116 @@
+@startuml Create Appointment - Happy Path
+
+title Create Appointment (Success Flow)
+
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor User
+participant "AppointmentController" as Controller
+participant "AppointmentService" as Service
+participant "Data Access Layer" as DAL
+participant "ReminderService" as ReminderService
+
+User -> Controller: POST /api/appointments
+activate Controller
+
+Controller -> Service: createAppointment(request, currentUser)
+activate Service
+
+Service -> DAL: findUser(userId)
+activate DAL
+DAL --> Service: User
+deactivate DAL
+
+Service -> Service: validateInput()
+
+alt [forceJoin = true]
+    Service -> DAL: findGroupMeetingByName(name)
+    activate DAL
+    DAL --> Service: GroupMeeting
+    deactivate DAL
+
+    Service -> DAL: addParticipant(groupMeeting, user)
+    activate DAL
+    DAL --> Service: GroupMeeting
+    deactivate DAL
+
+    Service --> Controller: AppointmentResponse
+    Controller --> User: Success
+
+else [forceReplace = true]
+    Service -> DAL: findUserAppointments(userId)
+    activate DAL
+    DAL --> Service: List<Appointment>
+    deactivate DAL
+
+    Service -> Service: findOverlappingAppointments()
+
+    Service -> DAL: deleteAppointments(overlapping)
+    activate DAL
+    DAL --> Service: void
+    deactivate DAL
+
+    Service -> DAL: findUserGroupMeetings(userId)
+    activate DAL
+    DAL --> Service: List<GroupMeeting>
+    deactivate DAL
+
+    Service -> Service: findOverlappingGroupMeetings()
+
+    loop [For each overlapping group]
+        Service -> DAL: removeParticipant(groupMeeting, user)
+        activate DAL
+        DAL --> Service: void
+        deactivate DAL
+    end
+
+    Service -> DAL: saveAppointment(newAppointment)
+    activate DAL
+    DAL --> Service: Appointment
+    deactivate DAL
+
+    opt [reminderMinutes provided]
+        Service -> ReminderService: createReminder(appointmentId, minutes)
+        activate ReminderService
+        ReminderService --> Service: Reminder
+        deactivate ReminderService
+    end
+
+    Service --> Controller: AppointmentResponse
+    Controller --> User: Success
+
+else [Normal creation]
+    Service -> DAL: findUserAppointments(userId)
+    activate DAL
+    DAL --> Service: List<Appointment>
+    deactivate DAL
+
+    Service -> DAL: findUserGroupMeetings(userId)
+    activate DAL
+    DAL --> Service: List<GroupMeeting>
+    deactivate DAL
+
+    Service -> Service: checkTimeConflicts()
+
+    Service -> DAL: saveAppointment(newAppointment)
+    activate DAL
+    DAL --> Service: Appointment
+    deactivate DAL
+
+    opt [reminderMinutes provided]
+        Service -> ReminderService: createReminder(appointmentId, minutes)
+        activate ReminderService
+        ReminderService --> Service: Reminder
+        deactivate ReminderService
+    end
+
+    Service --> Controller: AppointmentResponse
+    Controller --> User: Success
+end
+
+deactivate Service
+deactivate Controller
+
+@enduml
