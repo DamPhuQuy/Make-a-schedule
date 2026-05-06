@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import com.schedule.app.domain.repository.GroupMeetingRepository;
-import com.schedule.app.infrastructure.persistence.GroupMeetingJpaRepository;
 import com.schedule.app.infrastructure.persistence.entity.GroupMeeting;
+import com.schedule.app.infrastructure.persistence.jpa.GroupMeetingJpaRepository;
 
 public class GroupMeetingRepositoryAdapter implements GroupMeetingRepository {
     private final GroupMeetingJpaRepository groupMeetingJpaRepository;

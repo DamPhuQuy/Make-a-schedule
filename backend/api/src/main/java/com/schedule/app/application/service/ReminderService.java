@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.schedule.app.domain.repository.AppointmentRepository;
+import com.schedule.app.domain.repository.PersonalAppointmentRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
 import com.schedule.app.infrastructure.persistence.entity.Reminder;
 
@@ -19,11 +19,11 @@ public class ReminderService {
     private static final Logger log = LoggerFactory.getLogger(ReminderService.class);
 
     private final ReminderRepository reminderRepository;
-    private final AppointmentRepository appointmentRepository;
+    private final PersonalAppointmentRepository appointmentRepository;
     private final EmailService emailService;
 
     public ReminderService(ReminderRepository reminderRepository,
-                           AppointmentRepository appointmentRepository,
+                           PersonalAppointmentRepository appointmentRepository,
                            EmailService emailService) {
         this.reminderRepository = reminderRepository;
         this.appointmentRepository = appointmentRepository;

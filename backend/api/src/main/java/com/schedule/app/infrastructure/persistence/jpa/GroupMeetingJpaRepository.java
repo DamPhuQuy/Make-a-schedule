@@ -1,4 +1,4 @@
-package com.schedule.app.infrastructure.persistence;
+package com.schedule.app.infrastructure.persistence.jpa;
 
 import java.util.List;
 

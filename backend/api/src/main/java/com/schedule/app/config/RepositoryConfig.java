@@ -3,21 +3,21 @@ package com.schedule.app.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.schedule.app.adapter.persistence.AppointmentRepositoryAdapter;
 import com.schedule.app.adapter.persistence.GroupMeetingRepositoryAdapter;
+import com.schedule.app.adapter.persistence.PersonalAppointmentRepositoryAdapter;
 import com.schedule.app.adapter.persistence.RefreshTokenRepositoryAdapter;
 import com.schedule.app.adapter.persistence.ReminderRepositoryAdapter;
 import com.schedule.app.adapter.persistence.UserRepositoryAdapter;
-import com.schedule.app.domain.repository.AppointmentRepository;
 import com.schedule.app.domain.repository.GroupMeetingRepository;
+import com.schedule.app.domain.repository.PersonalAppointmentRepository;
 import com.schedule.app.domain.repository.RefreshTokenRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
 import com.schedule.app.domain.repository.UserRepository;
-import com.schedule.app.infrastructure.persistence.PersonalAppointmentJpaRepository;
-import com.schedule.app.infrastructure.persistence.GroupMeetingJpaRepository;
-import com.schedule.app.infrastructure.persistence.RefreshTokenJpaRepository;
-import com.schedule.app.infrastructure.persistence.ReminderJpaRepository;
-import com.schedule.app.infrastructure.persistence.UserJpaRepository;
+import com.schedule.app.infrastructure.persistence.jpa.GroupMeetingJpaRepository;
+import com.schedule.app.infrastructure.persistence.jpa.PersonalAppointmentJpaRepository;
+import com.schedule.app.infrastructure.persistence.jpa.RefreshTokenJpaRepository;
+import com.schedule.app.infrastructure.persistence.jpa.ReminderJpaRepository;
+import com.schedule.app.infrastructure.persistence.jpa.UserJpaRepository;
 
 @Configuration
 public class RepositoryConfig {
@@ -42,7 +42,7 @@ public class RepositoryConfig {
     }
 
     @Bean
-    public AppointmentRepository appointmentRepository(PersonalAppointmentJpaRepository appointmentJpaRepository) {
-        return new AppointmentRepositoryAdapter(appointmentJpaRepository);
+    public PersonalAppointmentRepository appointmentRepository(PersonalAppointmentJpaRepository appointmentJpaRepository) {
+        return new PersonalAppointmentRepositoryAdapter(appointmentJpaRepository);
     }
 }

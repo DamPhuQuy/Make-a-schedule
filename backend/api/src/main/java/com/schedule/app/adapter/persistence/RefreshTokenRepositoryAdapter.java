@@ -3,9 +3,9 @@ package com.schedule.app.adapter.persistence;
 import java.util.Optional;
 
 import com.schedule.app.domain.repository.RefreshTokenRepository;
-import com.schedule.app.infrastructure.persistence.RefreshTokenJpaRepository;
 import com.schedule.app.infrastructure.persistence.entity.RefreshToken;
 import com.schedule.app.infrastructure.persistence.entity.User;
+import com.schedule.app.infrastructure.persistence.jpa.RefreshTokenJpaRepository;
 
 public class RefreshTokenRepositoryAdapter implements RefreshTokenRepository {
     private final RefreshTokenJpaRepository refreshTokenJpaRepository;

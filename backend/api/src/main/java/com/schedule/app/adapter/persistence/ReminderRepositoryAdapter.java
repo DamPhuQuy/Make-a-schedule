@@ -3,8 +3,8 @@ package com.schedule.app.adapter.persistence;
 import java.util.List;
 
 import com.schedule.app.domain.repository.ReminderRepository;
-import com.schedule.app.infrastructure.persistence.ReminderJpaRepository;
 import com.schedule.app.infrastructure.persistence.entity.Reminder;
+import com.schedule.app.infrastructure.persistence.jpa.ReminderJpaRepository;
 
 public class ReminderRepositoryAdapter implements ReminderRepository {
     private final ReminderJpaRepository reminderJpaRepository;

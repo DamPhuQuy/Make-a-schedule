@@ -7,14 +7,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.schedule.app.application.service.AppointmentService;
 import com.schedule.app.application.service.AuthenticationService;
+import com.schedule.app.application.service.CreateReminderService;
 import com.schedule.app.application.service.LogoutService;
 import com.schedule.app.application.service.RegisterService;
 import com.schedule.app.application.usecase.AppointmentUseCase;
 import com.schedule.app.application.usecase.AuthenticationUseCase;
+import com.schedule.app.application.usecase.CreateReminderUseCase;
 import com.schedule.app.application.usecase.LogoutUseCase;
 import com.schedule.app.application.usecase.RegisterUseCase;
 import com.schedule.app.domain.repository.AppointmentRepository;
 import com.schedule.app.domain.repository.GroupMeetingRepository;
+import com.schedule.app.domain.repository.PersonalAppointmentRepository;
 import com.schedule.app.domain.repository.RefreshTokenRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
 import com.schedule.app.domain.repository.UserRepository;
@@ -22,8 +25,6 @@ import com.schedule.app.security.UserDetailsServiceImpl;
 import com.schedule.app.security.jwt.JwtProperties;
 import com.schedule.app.security.jwt.JwtService;
 import com.schedule.app.security.jwt.JwtUseCase;
-import com.schedule.app.application.service.CreateReminderService;
-import com.schedule.app.application.usecase.CreateReminderUseCase;
 
 @Configuration
 public class UsecaseConfig {
@@ -35,12 +36,12 @@ public class UsecaseConfig {
 
     @Bean
     public AppointmentUseCase appointmentUseCase(
-            AppointmentRepository appointmentRepository,
+            PersonalAppointmentRepository appointmentRepository,
             GroupMeetingRepository groupMeetingRepository,
             CreateReminderUseCase createReminderUseCase,
             ReminderRepository reminderRepository,
             UserRepository userRepository,
-            com.schedule.app.domain.repository.BaseRepository baseRepository) {
+            AppointmentRepository baseRepository) {
         return new AppointmentService(appointmentRepository, groupMeetingRepository, createReminderUseCase, reminderRepository, userRepository, baseRepository);
     }
 

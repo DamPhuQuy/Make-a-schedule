@@ -1,24 +1,20 @@
 package com.schedule.app.domain.repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-import com.schedule.app.infrastructure.persistence.entity.PersonalAppointment;
+import com.schedule.app.infrastructure.persistence.entity.Appointment;
 
 public interface AppointmentRepository {
 
-    List<PersonalAppointment> findOverlappingAppointments(Long ownerId, LocalDateTime startTime, LocalDateTime endTime);
+    List<Appointment> findOverlappingAppointments(Instant startTime, Instant endTime);
 
-    List<PersonalAppointment> findByOwnerId(Long ownerId);
+    List<Appointment> findOverlappingAppointmentsForUser(Long userId, Instant startTime, Instant endTime);
 
-    List<PersonalAppointment> findByName(String name);
+    Optional<Appointment> findById(Long id);
 
-    Optional<PersonalAppointment> findById(Long id);
+    Appointment save(Appointment base);
 
-    PersonalAppointment save(PersonalAppointment appointment);
-
-    void delete(PersonalAppointment appointment);
-
-    void deleteAll(List<PersonalAppointment> appointments);
+    void delete(Appointment base);
 }

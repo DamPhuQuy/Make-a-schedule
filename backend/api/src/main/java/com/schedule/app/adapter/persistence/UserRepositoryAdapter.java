@@ -3,8 +3,8 @@ package com.schedule.app.adapter.persistence;
 import java.util.Optional;
 
 import com.schedule.app.domain.repository.UserRepository;
-import com.schedule.app.infrastructure.persistence.UserJpaRepository;
 import com.schedule.app.infrastructure.persistence.entity.User;
+import com.schedule.app.infrastructure.persistence.jpa.UserJpaRepository;
 
 public class UserRepositoryAdapter implements UserRepository {
     private final UserJpaRepository userJpaRepository;
