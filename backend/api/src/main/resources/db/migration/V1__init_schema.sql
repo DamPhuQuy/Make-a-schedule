@@ -20,7 +20,7 @@ CREATE INDEX idx_users_email ON users(email);
 -- Create refresh_tokens table
 CREATE TABLE refresh_tokens (
     id BIGSERIAL PRIMARY KEY,
-    token VARCHAR(255) NOT NULL UNIQUE,
+    token TEXT NOT NULL UNIQUE,
     user_id BIGINT NOT NULL,
     expiry_date TIMESTAMP WITH TIME ZONE NOT NULL,
     revoked BOOLEAN NOT NULL DEFAULT FALSE,
