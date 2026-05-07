@@ -38,6 +38,10 @@ const REMINDER_OPTIONS = [
   { value: "15", label: "15 minutes before" },
   { value: "30", label: "30 minutes before" },
   { value: "60", label: "1 hour before" },
+  { value: "120", label: "2 hour before" },
+  { value: "1440", label: "1 day before" },
+  { value: "2880", label: "2 day before" },
+  { value: "10080", label: "1 week before" },
 ];
 
 export default function AppointmentModal({
