@@ -36,6 +36,10 @@ alt Group Meeting Match Found
 
 	Service -> GroupRepo: save(groupMeeting)
 
+	opt Reminder requested
+		Service -> ReminderService: createReminder(appointmentId, minutes)
+	end
+
 	Service --> Controller: AppointmentResponse
 	deactivate Service
 	Controller --> Frontend: appointment created

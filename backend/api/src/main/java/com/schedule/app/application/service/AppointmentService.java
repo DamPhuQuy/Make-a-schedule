@@ -318,7 +318,10 @@ public class AppointmentService implements AppointmentUseCase {
         GroupMeeting gm = createGroupMeetingWithCreator(request, user);
         addParticipantsToGroupMeeting(gm, request.getParticipantUsernames(), user.getEmail());
 
-        groupMeetingRepository.save(gm);
+        gm = groupMeetingRepository.save(gm);
+
+        createReminderIfNeeded(gm.getId(), request.getReminderMinutes());
+
         return mapGroupToResponse(gm);
     }
 
@@ -418,13 +421,16 @@ public class AppointmentService implements AppointmentUseCase {
             .map(p -> p.getUser().getEmail())
             .toList();
 
+        List<Reminder> reminders = reminderRepository.findByAppointmentId(param.getId());
+        Integer reminderMinutes = reminders.isEmpty() ? null : reminders.get(0).getMinutesBefore();
+
         return AppointmentResponse.builder()
             .id(param.getId())
             .name(param.getName())
             .location("Multiple")
             .startTime(param.getTimeSlot().getStartTime())
             .endTime(param.getTimeSlot().getEndTime())
-            .reminderMinutes(null)
+            .reminderMinutes(reminderMinutes)
             .isGroupMeeting(true)
             .ownerUsername("Group")
             .appointmentType(com.schedule.app.domain.model.AppointmentType.GROUP_MEETING)
