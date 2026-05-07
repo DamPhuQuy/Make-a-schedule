@@ -2,6 +2,7 @@ package com.schedule.app.application.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,22 +34,22 @@ public class AppointmentService implements AppointmentUseCase {
 
     private static final String USER_NOT_FOUND = "User not found";
 
-    private final PersonalAppointmentRepository appointmentRepository;
+    private final PersonalAppointmentRepository personalAppointmentRepository;
     private final GroupMeetingRepository groupMeetingRepository;
     private final CreateReminderUseCase createReminderUseCase;
     private final ReminderRepository reminderRepository;
     private final UserRepository userRepository;
-    private final com.schedule.app.domain.repository.AppointmentRepository baseRepository;
+    private final AppointmentRepository appointmentRepository;
 
-    public AppointmentService(PersonalAppointmentRepository appointmentRepository, GroupMeetingRepository groupMeetingRepository,
+    public AppointmentService(PersonalAppointmentRepository personalAppointmentRepository, GroupMeetingRepository groupMeetingRepository,
             CreateReminderUseCase createReminderUseCase, ReminderRepository reminderRepository, UserRepository userRepository,
-            AppointmentRepository baseRepository) {
-        this.appointmentRepository = appointmentRepository;
+            AppointmentRepository appointmentRepository) {
+        this.personalAppointmentRepository = personalAppointmentRepository;
         this.groupMeetingRepository = groupMeetingRepository;
         this.createReminderUseCase = createReminderUseCase;
         this.reminderRepository = reminderRepository;
         this.userRepository = userRepository;
-        this.baseRepository = baseRepository;
+        this.appointmentRepository = appointmentRepository;
     }
 
     @Override
@@ -91,7 +92,7 @@ public class AppointmentService implements AppointmentUseCase {
 
     private Optional<Appointment> findOverlappingAppointment(
             Long userId, Instant startTime, Instant endTime) {
-        return baseRepository.findOverlappingAppointmentsForUser(userId, startTime, endTime).stream()
+        return appointmentRepository.findOverlappingAppointmentsForUser(userId, startTime, endTime).stream()
             .findFirst();
     }
 
@@ -148,7 +149,7 @@ public class AppointmentService implements AppointmentUseCase {
     }
 
     private List<AppointmentResponse> getPersonalAppointments(Long userId) {
-        return appointmentRepository.findByOwnerId(userId).stream()
+        return personalAppointmentRepository.findByOwnerId(userId).stream()
             .map(this::mapToResponse)
             .toList();
     }
@@ -170,7 +171,7 @@ public class AppointmentService implements AppointmentUseCase {
     public AppointmentResponse getAppointmentById(Long id, UserDetailsImpl currentUser) {
         User user = getUserOrThrow(currentUser.getId());
 
-        var personalAppointment = appointmentRepository.findById(id);
+        var personalAppointment = personalAppointmentRepository.findById(id);
         if (personalAppointment.isPresent()) {
             return handlePersonalAppointmentAccess(personalAppointment.get(), user.getId());
         }
@@ -203,10 +204,6 @@ public class AppointmentService implements AppointmentUseCase {
         User user = getUserOrThrow(currentUser.getId());
         validateAppointmentBasicFields(request.getName(), request.getStartTime(), request.getEndTime());
 
-        // Debug logging
-        System.out.println("DEBUG - forceReplace: " + request.isForceReplace());
-        System.out.println("DEBUG - forceJoin: " + request.isForceJoin());
-
         if (request.isForceJoin()) {
             return handleForceJoin(request, user);
         }
@@ -215,7 +212,7 @@ public class AppointmentService implements AppointmentUseCase {
         handleForceReplaceIfNeeded(request, user.getId());
 
         PersonalAppointment appointment = createPersonalAppointment(request, user);
-        appointment = appointmentRepository.save(appointment);
+        appointment = personalAppointmentRepository.save(appointment);
 
         createReminderIfNeeded(appointment.getId(), request.getReminderMinutes());
 
@@ -252,7 +249,7 @@ public class AppointmentService implements AppointmentUseCase {
     private void checkConflictsIfNeeded(CreateAppointmentRequest request, Long userId) {
         if (!request.isForceReplace()) {
             List<Appointment> overlapping =
-                baseRepository.findOverlappingAppointmentsForUser(userId, request.getStartTime(), request.getEndTime());
+                appointmentRepository.findOverlappingAppointmentsForUser(userId, request.getStartTime(), request.getEndTime());
 
             if (!overlapping.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -264,7 +261,7 @@ public class AppointmentService implements AppointmentUseCase {
     private void handleForceReplaceIfNeeded(CreateAppointmentRequest request, Long userId) {
         if (request.isForceReplace()) {
             List<Appointment> overlapping =
-                baseRepository.findOverlappingAppointmentsForUser(userId, request.getStartTime(), request.getEndTime());
+                appointmentRepository.findOverlappingAppointmentsForUser(userId, request.getStartTime(), request.getEndTime());
 
             for (Appointment overlap : overlapping) {
                 deleteOrRemoveUserFromAppointment(overlap, userId);
@@ -276,7 +273,7 @@ public class AppointmentService implements AppointmentUseCase {
         if (appointment instanceof GroupMeeting) {
             removeUserFromGroupMeeting((GroupMeeting) appointment, userId);
         } else if (appointment instanceof PersonalAppointment) {
-            appointmentRepository.delete((PersonalAppointment) appointment);
+            personalAppointmentRepository.delete((PersonalAppointment) appointment);
         }
     }
 
@@ -329,7 +326,7 @@ public class AppointmentService implements AppointmentUseCase {
         GroupMeeting gm = new GroupMeeting();
         gm.setName(request.getName());
         gm.setTimeSlot(new TimeSlot(request.getStartTime(), request.getEndTime()));
-        gm.setParticipants(new ArrayList<>());
+        gm.setParticipants(new HashSet<>());
 
         GroupMeetingParticipant creatorParticipant = new GroupMeetingParticipant();
         creatorParticipant.setGroupMeeting(gm);
@@ -362,7 +359,7 @@ public class AppointmentService implements AppointmentUseCase {
     public void deleteAppointment(Long id, UserDetailsImpl currentUser) {
         User user = getUserOrThrow(currentUser.getId());
 
-        var personalAppointment = appointmentRepository.findById(id);
+        var personalAppointment = personalAppointmentRepository.findById(id);
         if (personalAppointment.isPresent()) {
             deletePersonalAppointment(personalAppointment.get(), user.getId());
             return;
@@ -381,7 +378,7 @@ public class AppointmentService implements AppointmentUseCase {
         if (!appointment.getOwner().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You don't have access to this appointment");
         }
-        appointmentRepository.delete(appointment);
+        personalAppointmentRepository.delete(appointment);
     }
 
     private void removeUserFromGroupMeetingOrDelete(GroupMeeting gm, Long userId) {

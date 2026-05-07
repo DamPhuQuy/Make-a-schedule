@@ -1,7 +1,7 @@
 package com.schedule.app.infrastructure.persistence.entity;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.DiscriminatorValue;
@@ -21,6 +21,6 @@ import lombok.Setter;
 public class GroupMeeting extends Appointment {
 
     @OneToMany(mappedBy = "groupMeeting", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<GroupMeetingParticipant> participants = new ArrayList<>();
+    private Set<GroupMeetingParticipant> participants = new HashSet<>();
 
 }

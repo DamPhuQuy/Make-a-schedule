@@ -14,10 +14,10 @@ public interface AppointmentJpaRepository extends JpaRepository<Appointment, Lon
     List<Appointment> findOverlappingAppointments(@Param("startTime") Instant startTime, @Param("endTime") Instant endTime);
 
     @Query("SELECT DISTINCT a FROM Appointment a " +
-           "LEFT JOIN PersonalAppointment pa ON a.id = pa.id " +
-           "LEFT JOIN GroupMeeting gm ON a.id = gm.id " +
+           "LEFT JOIN GroupMeeting gm ON a = gm " +
            "LEFT JOIN gm.participants p " +
-           "WHERE (pa.owner.id = :userId OR p.user.id = :userId) " +
+           "WHERE (TYPE(a) = PersonalAppointment AND TREAT(a AS PersonalAppointment).owner.id = :userId " +
+           "OR TYPE(a) = GroupMeeting AND p.user.id = :userId) " +
            "AND a.timeSlot.startTime < :endTime AND a.timeSlot.endTime > :startTime")
     List<Appointment> findOverlappingAppointmentsForUser(@Param("userId") Long userId,
                                                     @Param("startTime") Instant startTime,

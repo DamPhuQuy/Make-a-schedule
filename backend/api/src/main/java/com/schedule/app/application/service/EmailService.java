@@ -8,6 +8,8 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import com.schedule.app.infrastructure.persistence.entity.GroupMeeting;
+import com.schedule.app.infrastructure.persistence.entity.GroupMeetingParticipant;
 import com.schedule.app.infrastructure.persistence.entity.PersonalAppointment;
 
 @Service
@@ -36,5 +38,23 @@ public class EmailService {
                 "\n\nBest regards,\nMake-a-schedule App");
 
         mailSender.send(message);
+    }
+
+    public void sendGroupMeetingReminder(GroupMeeting groupMeeting) {
+        ZonedDateTime startTime = groupMeeting.getTimeSlot().getStartTime()
+                .atZone(ZoneId.of("UTC"))
+                .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"));
+        String formattedTime = startTime.format(formatter);
+
+        for (GroupMeetingParticipant participant : groupMeeting.getParticipants()) {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(participant.getUser().getEmail());
+            message.setSubject("Reminder: " + groupMeeting.getName());
+            message.setText("Hello,\n\nThis is a reminder for your upcoming group meeting: " + groupMeeting.getName() +
+                    "\nStart Time: " + formattedTime +
+                    "\n\nBest regards,\nMake-a-schedule App");
+
+            mailSender.send(message);
+        }
     }
 }

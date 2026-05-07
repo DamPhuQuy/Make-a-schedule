@@ -1,0 +1,64 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class Appointment <<abstract>> {
+	- id: Long
+	- name: String
+	- timeSlot: TimeSlot
+}
+
+class GroupMeeting {
+	- participants: Set<GroupMeetingParticipant>
+}
+
+class PersonalAppointment {
+	- location: String
+	- owner: User
+}
+
+class GroupMeetingParticipant {
+	- id: Long
+	- groupMeeting: GroupMeeting
+	- user: User
+}
+
+class RefreshToken {
+	- id: Long
+	- token: String
+	- expiryDate: Instant
+	- revoked: boolean
+	- user: User
+}
+
+class Reminder {
+	- id: Long
+	- appointmentId: Long
+	- minutesBefore: Integer
+}
+
+class TimeSlot <<embeddable>> {
+	- startTime: Instant
+	- endTime: Instant
+	+ overlaps(other: TimeSlot): boolean
+}
+
+class User {
+	- id: Long
+	- email: String
+	- password: String
+}
+
+Appointment <|-- GroupMeeting
+Appointment <|-- PersonalAppointment
+Appointment *-- TimeSlot : timeSlot
+
+GroupMeeting "1" *-- "0..*" GroupMeetingParticipant : participants
+GroupMeetingParticipant "*" --> "1" GroupMeeting
+GroupMeetingParticipant "*" --> "1" User
+
+PersonalAppointment "*" --> "1" User : owner
+RefreshToken "*" --> "1" User
+
+Reminder ..> Appointment : appointmentId
+
+@enduml

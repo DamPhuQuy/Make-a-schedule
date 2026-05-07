@@ -9,8 +9,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.schedule.app.domain.repository.PersonalAppointmentRepository;
+import com.schedule.app.domain.repository.AppointmentRepository;
 import com.schedule.app.domain.repository.ReminderRepository;
+import com.schedule.app.infrastructure.persistence.entity.Appointment;
+import com.schedule.app.infrastructure.persistence.entity.GroupMeeting;
+import com.schedule.app.infrastructure.persistence.entity.PersonalAppointment;
 import com.schedule.app.infrastructure.persistence.entity.Reminder;
 
 @Service
@@ -19,11 +22,11 @@ public class ReminderService {
     private static final Logger log = LoggerFactory.getLogger(ReminderService.class);
 
     private final ReminderRepository reminderRepository;
-    private final PersonalAppointmentRepository appointmentRepository;
+    private final AppointmentRepository appointmentRepository;
     private final EmailService emailService;
 
     public ReminderService(ReminderRepository reminderRepository,
-                           PersonalAppointmentRepository appointmentRepository,
+                           AppointmentRepository appointmentRepository,
                            EmailService emailService) {
         this.reminderRepository = reminderRepository;
         this.appointmentRepository = appointmentRepository;
@@ -41,7 +44,7 @@ public class ReminderService {
         for (Reminder reminder : dueReminders) {
             appointmentRepository.findById(reminder.getAppointmentId()).ifPresent(appointment -> {
                 try {
-                    emailService.sendReminderEmail(appointment.getOwner().getEmail(), appointment);
+                    sendReminderForAppointment(appointment);
                     log.info("[ReminderService] Sent reminder for appointment '{}'", appointment.getName());
                     reminderRepository.delete(reminder);
                 } catch (Exception e) {
@@ -49,6 +52,14 @@ public class ReminderService {
                             reminder.getAppointmentId(), e.getMessage());
                 }
             });
+        }
+    }
+
+    private void sendReminderForAppointment(Appointment appointment) {
+        if (appointment instanceof PersonalAppointment personalAppointment) {
+            emailService.sendReminderEmail(personalAppointment.getOwner().getEmail(), personalAppointment);
+        } else if (appointment instanceof GroupMeeting groupMeeting) {
+            emailService.sendGroupMeetingReminder(groupMeeting);
         }
     }
 }
